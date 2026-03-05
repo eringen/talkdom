@@ -1,29 +1,72 @@
-(function() {
+(function () {
 
-  let target = null;
-  function reqListener() {
-    if (target) {
-      target.innerHTML = this.responseText;
+  function parseMessage(str) {
+    const tokens = str.trim().split(/\s+/);
+    const receiver = tokens[0];
+    const rest = tokens.slice(1);
+    const keywords = [];
+    const args = [];
+    let currentArg = [];
+
+    for (const token of rest) {
+      if (token.endsWith(":")) {
+        if (keywords.length > 0 && currentArg.length > 0) {
+          args.push(currentArg.join(" "));
+          currentArg = [];
+        } else if (keywords.length > 0) {
+          args.push("");
+        }
+        keywords.push(token);
+      } else {
+        currentArg.push(token);
+      }
     }
+    if (keywords.length > 0) {
+      args.push(currentArg.join(" "));
+    }
+
+    return { receiver, selector: keywords.join(""), args };
   }
 
-  const body = document.querySelector("body");
+  function findReceiver(name) {
+    return document.querySelector('[receiver="' + name + '"]');
+  }
 
-  body.addEventListener("click", (e) => {
-    const el = e.target.closest("[eringen]");
-    if (el) {
-      const attr = el.getAttribute("eringen").split(' ');
-      target = document.querySelector(el.getAttribute("eringen-target"));
-      methods[attr[0]]?.(...attr.slice(1)) ?? console.error(`unknown message: ${attr[0]}`);
+  function apply(el, op, content) {
+    switch (op) {
+      case "inner": el.innerHTML = content; break;
+      case "text": el.textContent = content; break;
+      case "append": el.innerHTML += content; break;
+      case "outer": el.outerHTML = content; break;
     }
-  });
-
-  const req = new XMLHttpRequest();
-  req.addEventListener("load", reqListener);
+  }
 
   const methods = {
-    get: (url) => { req.open("GET", url); req.send(); return true },
+    "get:apply:": function (el, url, op) {
+      fetch(url)
+        .then(function (r) { return r.text(); })
+        .then(function (text) { apply(el, op, text); });
+    },
+  };
+
+  function dispatch(senderEl) {
+    const msg = parseMessage(senderEl.getAttribute("sender"));
+    const el = findReceiver(msg.receiver);
+    if (!el) {
+      console.error(msg.receiver + " not found");
+      return;
+    }
+    const method = methods[msg.selector];
+    if (!method) {
+      console.error(msg.receiver + " does not understand " + msg.selector);
+      return;
+    }
+    method(el, ...msg.args);
   }
 
-}());
+  document.addEventListener("click", function (e) {
+    const sender = e.target.closest("[sender]");
+    if (sender) dispatch(sender);
+  });
 
+}());
