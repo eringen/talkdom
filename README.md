@@ -31,7 +31,7 @@ args:     ["/partial", "inner"]
 - Apply operations: `inner`, `text`, `append`, `outer`
 - Multiple messages per sender, separated by `;`
 - An element can be both sender and receiver
-- Extensible methods via `jstalk.methods`
+- Extensible methods via `talkDOM.methods`
 
 ## Usage
 
@@ -56,7 +56,7 @@ Include the script:
 ## Extending
 
 ```js
-jstalk.methods["toggle:"] = function (el, cls) {
+talkDOM.methods["toggle:"] = function (el, cls) {
   el.classList.toggle(cls);
 };
 ```
