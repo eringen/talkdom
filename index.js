@@ -27,8 +27,3 @@
 
 }());
 
-function changeInner(m, u) {
-  const req = new XMLHttpRequest();
-  req.addEventListener("load", reqListener);
-  req.open(m, u); req.send();
-}
