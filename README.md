@@ -61,13 +61,3 @@ jstalk.methods["toggle:"] = function (el, cls) {
   el.classList.toggle(cls);
 };
 ```
-
-## LSP
-
-```bash
-cd lsp && npm install
-```
-
-VS Code: install extension from `lsp/` directory.
-
-Neovim: copy `lsp/jstalk.lua` to `~/.config/nvim/after/plugin/`.
