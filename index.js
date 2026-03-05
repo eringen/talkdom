@@ -41,12 +41,17 @@
     }
   }
 
+  function request(method, el, url, op) {
+    fetch(url, { method: method })
+      .then(function (r) { return r.text(); })
+      .then(function (text) { apply(el, op, text); });
+  }
+
   const methods = {
-    "get:apply:": function (el, url, op) {
-      fetch(url)
-        .then(function (r) { return r.text(); })
-        .then(function (text) { apply(el, op, text); });
-    },
+    "get:apply:": function (el, url, op) { request("GET", el, url, op); },
+    "post:apply:": function (el, url, op) { request("POST", el, url, op); },
+    "put:apply:": function (el, url, op) { request("PUT", el, url, op); },
+    "delete:apply:": function (el, url, op) { request("DELETE", el, url, op); },
   };
 
   function send(msg) {
