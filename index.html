@@ -8,9 +8,10 @@
 <body>
   <h2>jstalk</h2>
 
-  <button sender="content get: partial.html apply: inner">Load partial</button>
+  <button sender="content get: partial.html apply: inner; log get: partial.html apply: text">Load partial</button>
 
   <div receiver="content"></div>
+  <pre receiver="log"></pre>
 
   <script src="index.js"></script>
 </body>

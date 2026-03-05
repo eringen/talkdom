@@ -49,8 +49,7 @@
     },
   };
 
-  function dispatch(senderEl) {
-    const msg = parseMessage(senderEl.getAttribute("sender"));
+  function send(msg) {
     const el = findReceiver(msg.receiver);
     if (!el) {
       console.error(msg.receiver + " not found");
@@ -62,6 +61,14 @@
       return;
     }
     method(el, ...msg.args);
+  }
+
+  function dispatch(senderEl) {
+    var raw = senderEl.getAttribute("sender");
+    raw.split(";").forEach(function (part) {
+      var trimmed = part.trim();
+      if (trimmed) send(parseMessage(trimmed));
+    });
   }
 
   document.addEventListener("click", function (e) {
