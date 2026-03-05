@@ -81,4 +81,6 @@
     if (sender) dispatch(sender);
   });
 
+  window.jstalk = { methods: methods };
+
 }());
