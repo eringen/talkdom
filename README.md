@@ -32,7 +32,6 @@ args:     ["/partial", "inner"]
 - Multiple messages per sender, separated by `;`
 - An element can be both sender and receiver
 - Extensible methods via `jstalk.methods`
-- LSP with diagnostics, completions, and hover (VS Code + Neovim)
 
 ## Usage
 
