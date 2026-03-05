@@ -1,6 +1,6 @@
 # jstalk (WIP)
 
-Smalltalk-inspired message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies, 60 lines.
+Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies, 60 lines.
 
 ## How it works
 
