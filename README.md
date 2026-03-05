@@ -1,4 +1,4 @@
-# jstalk (WIP)
+# talkDOM (WIP)
 
 Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies, 60 lines.
 
