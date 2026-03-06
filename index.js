@@ -97,43 +97,29 @@
     "delete:apply:": function (el, url, op) { return request("DELETE", url).then(function (t) { apply(el, op, t); }); },
   };
 
-  var routeState = {};
-  var routePaused = false;
+  var pushing = false;
 
-  function updateRoute() {
-    if (routePaused) return;
-    var pairs = [];
-    for (var name in routeState) {
-      pairs.push(name + "=" + encodeURIComponent(routeState[name]));
+  function pushUrl(senderEl, raw) {
+    if (!senderEl.hasAttribute("push-url")) return;
+    var url = senderEl.getAttribute("push-url");
+    if (!url) {
+      var firstMsg = parseMessage(raw.split(";")[0].split("|")[0].trim());
+      url = firstMsg.args[0] || "";
     }
-    var hash = pairs.length ? "#" + pairs.join("&") : " ";
-    if (location.hash !== hash) {
-      history.pushState(Object.assign({}, routeState), "", hash.trim() || location.pathname);
+    if (url && location.pathname !== url) {
+      history.pushState({ sender: raw }, "", url);
     }
   }
 
-  function restoreRoute() {
-    var hash = location.hash.slice(1);
-    if (!hash) return;
-    routePaused = true;
-    hash.split("&").forEach(function (pair) {
-      var idx = pair.indexOf("=");
-      if (idx === -1) return;
-      var name = pair.substring(0, idx);
-      var body = decodeURIComponent(pair.substring(idx + 1));
-      routeState[name] = body;
-      send(parseMessage(name + " " + body));
-    });
-    routePaused = false;
+  function replayState(state) {
+    if (!state || !state.sender) return;
+    pushing = true;
+    dispatchRaw(state.sender);
+    pushing = false;
   }
 
   window.addEventListener("popstate", function (e) {
-    routePaused = true;
-    routeState = e.state || {};
-    for (var name in routeState) {
-      send(parseMessage(name + " " + routeState[name]));
-    }
-    routePaused = false;
+    replayState(e.state);
   });
 
   function send(msg, piped) {
@@ -152,17 +138,10 @@
     els.forEach(function (el) {
       result = method(el, ...args);
     });
-    if (els[0].hasAttribute("route") && msg.body) {
-      Promise.resolve(result).then(function () {
-        routeState[msg.receiver] = msg.body;
-        updateRoute();
-      });
-    }
     return result;
   }
 
-  function dispatch(senderEl) {
-    var raw = senderEl.getAttribute("sender");
+  function dispatchRaw(raw) {
     raw.split(";").forEach(function (chain) {
       var trimmed = chain.trim();
       if (!trimmed) return;
@@ -178,6 +157,12 @@
         });
       }, undefined);
     });
+  }
+
+  function dispatch(senderEl) {
+    var raw = senderEl.getAttribute("sender");
+    dispatchRaw(raw);
+    if (!pushing) pushUrl(senderEl, raw);
   }
 
   function parseInterval(str) {
@@ -218,7 +203,7 @@
   });
 
   restore();
-  restoreRoute();
+  replayState(history.state);
   document.querySelectorAll("[poll]").forEach(startPolling);
 
   window.talkDOM = { methods: methods };
