@@ -32,7 +32,17 @@
     return document.querySelector('[receiver="' + name + '"]');
   }
 
+  function accepts(el, op) {
+    var attr = el.getAttribute("accepts");
+    if (!attr) return true;
+    return attr.split(/\s+/).indexOf(op) !== -1;
+  }
+
   function apply(el, op, content) {
+    if (!accepts(el, op)) {
+      console.error(el.getAttribute("receiver") + " does not accept " + op);
+      return;
+    }
     switch (op) {
       case "inner": el.innerHTML = content; break;
       case "text": el.textContent = content; break;
@@ -76,10 +86,44 @@
     });
   }
 
+  function parseInterval(str) {
+    var match = str.match(/^(\d+)(s|ms)$/);
+    if (!match) return null;
+    var n = parseInt(match[1], 10);
+    return match[2] === "s" ? n * 1000 : n;
+  }
+
+  function startPolling(el) {
+    var raw = el.getAttribute("poll");
+    if (!raw) return;
+    var msg = parseMessage(raw);
+    if (!msg) return;
+    var everyIdx = msg.args.length - 1;
+    var interval = parseInterval(msg.args[everyIdx]);
+    if (!interval) {
+      console.error("poll: invalid interval");
+      return;
+    }
+    var selector = msg.selector.replace("every:", "");
+    var args = msg.args.slice(0, everyIdx);
+    setInterval(function () {
+      var target = findReceiver(msg.receiver);
+      if (!target) return;
+      var method = methods[selector];
+      if (!method) {
+        console.error(msg.receiver + " does not understand " + selector);
+        return;
+      }
+      method(target, ...args);
+    }, interval);
+  }
+
   document.addEventListener("click", function (e) {
     const sender = e.target.closest("[sender]");
     if (sender) dispatch(sender);
   });
+
+  document.querySelectorAll("[poll]").forEach(startPolling);
 
   window.talkDOM = { methods: methods };
 
