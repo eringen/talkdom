@@ -38,6 +38,32 @@
     return attr.split(/\s+/).indexOf(op) !== -1;
   }
 
+  function persist(el, op) {
+    var name = el.getAttribute("receiver");
+    if (!name || !el.hasAttribute("persist")) return;
+    var key = "talkDOM:" + name;
+    if (op === "outer") {
+      localStorage.setItem(key, JSON.stringify({ op: op, content: el.outerHTML }));
+    } else {
+      localStorage.setItem(key, JSON.stringify({ op: op, content: el.innerHTML }));
+    }
+  }
+
+  function restore() {
+    document.querySelectorAll("[persist]").forEach(function (el) {
+      var name = el.getAttribute("receiver");
+      if (!name) return;
+      var raw = localStorage.getItem("talkDOM:" + name);
+      if (!raw) return;
+      var state = JSON.parse(raw);
+      if (state.op === "outer") {
+        el.outerHTML = state.content;
+      } else {
+        el.innerHTML = state.content;
+      }
+    });
+  }
+
   function apply(el, op, content) {
     if (!accepts(el, op)) {
       console.error(el.getAttribute("receiver") + " does not accept " + op);
@@ -49,6 +75,7 @@
       case "append": el.innerHTML += content; break;
       case "outer": el.outerHTML = content; break;
     }
+    persist(el, op);
   }
 
   function request(method, url) {
@@ -138,6 +165,7 @@
     if (sender) dispatch(sender);
   });
 
+  restore();
   document.querySelectorAll("[poll]").forEach(startPolling);
 
   window.talkDOM = { methods: methods };
