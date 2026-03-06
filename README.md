@@ -27,10 +27,15 @@ args:     ["/partial", "inner"]
 
 ## Features
 
-- `get:apply:`, `post:apply:`, `put:apply:`, `delete:apply:` selectors
+- `get:`, `post:`, `put:`, `delete:` selectors (return response for piping)
+- `get:apply:`, `post:apply:`, `put:apply:`, `delete:apply:` shorthand selectors
+- `apply:` consumes piped content
 - Apply operations: `inner`, `text`, `append`, `outer`
-- Multiple messages per sender, separated by `;`
+- Pipes (`|`) chain return values between messages
+- Independent messages (`;`) fire separately
 - An element can be both sender and receiver
+- Receivers declare allowed operations via `accepts`
+- Polling with `poll` attribute
 - Extensible methods via `talkDOM.methods`
 
 ## Usage
@@ -45,6 +50,34 @@ Include the script:
 
 ```html
 <button sender="content get: /page apply: inner; log get: /page apply: text">Load</button>
+```
+
+## Pipes
+
+`|` chains the return value of one message into the next as the first argument.
+
+```html
+<!-- fetch then apply -->
+<button sender="content get: /partial | content apply: inner">Load</button>
+
+<!-- pipe to a different receiver -->
+<button sender="content get: /partial | sidebar apply: append">Load to sidebar</button>
+```
+
+## Accepts
+
+Receivers declare what operations they allow.
+
+```html
+<div receiver="content" accepts="inner text"></div>
+```
+
+## Polling
+
+Receivers can poll on an interval.
+
+```html
+<div receiver="feed" poll="feed get: /updates apply: inner every: 10s"></div>
 ```
 
 ## Self-replacing elements
