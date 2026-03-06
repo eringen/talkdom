@@ -215,7 +215,8 @@
     var selector = msg.selector.replace("poll:", "");
     var args = msg.args.slice(0, pollIdx);
     var name = msg.receiver;
-    setInterval(function () {
+    var id = setInterval(function () {
+      if (!el.isConnected) { clearInterval(id); return; }
       var targets = findReceivers(name);
       if (targets.length === 0) return;
       var method = methods[selector];
