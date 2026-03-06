@@ -28,7 +28,7 @@
       args.push(currentArg.join(" "));
     }
 
-    return { receiver: receiver, selector: keywords.join(""), args: args, body: body };
+    return { receiver: receiver, selector: keywords.join(""), keywords: keywords, args: args, body: body };
   }
 
   function receiverName(el) {
@@ -205,15 +205,14 @@
   function startPolling(el) {
     var attr = el.getAttribute("receiver");
     var msg = parseMessage(attr);
-    if (msg.selector.indexOf("poll:") === -1) return;
-    var pollIdx = msg.args.length - 1;
-    var interval = parseInterval(msg.args[pollIdx]);
+    if (msg.keywords[msg.keywords.length - 1] !== "poll:") return;
+    var interval = parseInterval(msg.args[msg.args.length - 1]);
     if (!interval) {
       console.error("poll: invalid interval for " + msg.receiver);
       return;
     }
-    var selector = msg.selector.replace("poll:", "");
-    var args = msg.args.slice(0, pollIdx);
+    var selector = msg.keywords.slice(0, -1).join("");
+    var args = msg.args.slice(0, -1);
     var name = msg.receiver;
     var id = setInterval(function () {
       if (!el.isConnected) { clearInterval(id); return; }
