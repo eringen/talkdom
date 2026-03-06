@@ -31,8 +31,8 @@
     return { receiver: receiver, selector: keywords.join(""), args: args, body: body };
   }
 
-  function findReceiver(name) {
-    return document.querySelector('[receiver="' + name + '"]');
+  function findReceivers(name) {
+    return document.querySelectorAll('[receiver="' + name + '"]');
   }
 
   function accepts(el, op) {
@@ -137,8 +137,8 @@
   });
 
   function send(msg, piped) {
-    var el = findReceiver(msg.receiver);
-    if (!el) {
+    var els = findReceivers(msg.receiver);
+    if (els.length === 0) {
       console.error(msg.receiver + " not found");
       return;
     }
@@ -148,8 +148,11 @@
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
-    var result = method(el, ...args);
-    if (el.hasAttribute("route") && msg.body) {
+    var result;
+    els.forEach(function (el) {
+      result = method(el, ...args);
+    });
+    if (els[0].hasAttribute("route") && msg.body) {
       Promise.resolve(result).then(function () {
         routeState[msg.receiver] = msg.body;
         updateRoute();
@@ -198,14 +201,14 @@
     var selector = msg.selector.replace("every:", "");
     var args = msg.args.slice(0, everyIdx);
     setInterval(function () {
-      var target = findReceiver(msg.receiver);
-      if (!target) return;
+      var targets = findReceivers(msg.receiver);
+      if (targets.length === 0) return;
       var method = methods[selector];
       if (!method) {
         console.error(msg.receiver + " does not understand " + selector);
         return;
       }
-      method(target, ...args);
+      targets.forEach(function (target) { method(target, ...args); });
     }, interval);
   }
 
