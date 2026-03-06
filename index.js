@@ -36,12 +36,7 @@
   }
 
   function findReceivers(name) {
-    var all = document.querySelectorAll("[receiver]");
-    var matched = [];
-    all.forEach(function (el) {
-      if (receiverName(el) === name) matched.push(el);
-    });
-    return matched;
+    return document.querySelectorAll('[receiver~="' + name + '"]');
   }
 
   function accepts(el, op) {
@@ -107,7 +102,13 @@
       var token = csrfToken();
       if (token) headers["X-CSRF-Token"] = token;
     }
-    return fetch(url, { method: method, headers: headers }).then(function (r) { return r.text(); });
+    return fetch(url, { method: method, headers: headers }).then(function (r) {
+      var trigger = r.headers.get("X-TalkDOM-Trigger");
+      return r.text().then(function (text) {
+        if (trigger) dispatchRaw(trigger);
+        return text;
+      });
+    });
   }
 
   function recName(el) {
