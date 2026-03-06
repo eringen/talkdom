@@ -51,38 +51,53 @@
     }
   }
 
-  function request(method, el, url, op) {
-    fetch(url, { method: method })
-      .then(function (r) { return r.text(); })
-      .then(function (text) { apply(el, op, text); });
+  function request(method, url) {
+    return fetch(url, { method: method }).then(function (r) { return r.text(); });
   }
 
   const methods = {
-    "get:apply:": function (el, url, op) { request("GET", el, url, op); },
-    "post:apply:": function (el, url, op) { request("POST", el, url, op); },
-    "put:apply:": function (el, url, op) { request("PUT", el, url, op); },
-    "delete:apply:": function (el, url, op) { request("DELETE", el, url, op); },
+    "get:": function (el, url) { return request("GET", url); },
+    "post:": function (el, url) { return request("POST", url); },
+    "put:": function (el, url) { return request("PUT", url); },
+    "delete:": function (el, url) { return request("DELETE", url); },
+    "apply:": function (el, content, op) { apply(el, op, content); },
+    "get:apply:": function (el, url, op) { return request("GET", url).then(function (t) { apply(el, op, t); }); },
+    "post:apply:": function (el, url, op) { return request("POST", url).then(function (t) { apply(el, op, t); }); },
+    "put:apply:": function (el, url, op) { return request("PUT", url).then(function (t) { apply(el, op, t); }); },
+    "delete:apply:": function (el, url, op) { return request("DELETE", url).then(function (t) { apply(el, op, t); }); },
   };
 
-  function send(msg) {
-    const el = findReceiver(msg.receiver);
+  function send(msg, piped) {
+    var el = findReceiver(msg.receiver);
     if (!el) {
       console.error(msg.receiver + " not found");
       return;
     }
-    const method = methods[msg.selector];
+    var method = methods[msg.selector];
     if (!method) {
       console.error(msg.receiver + " does not understand " + msg.selector);
       return;
     }
-    method(el, ...msg.args);
+    var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
+    return method(el, ...args);
   }
 
   function dispatch(senderEl) {
     var raw = senderEl.getAttribute("sender");
-    raw.split(";").forEach(function (part) {
-      var trimmed = part.trim();
-      if (trimmed) send(parseMessage(trimmed));
+    raw.split(";").forEach(function (chain) {
+      var trimmed = chain.trim();
+      if (!trimmed) return;
+      var steps = trimmed.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
+      if (steps.length === 1) {
+        send(parseMessage(steps[0]));
+        return;
+      }
+      steps.reduce(function (prev, step) {
+        var msg = parseMessage(step);
+        return Promise.resolve(prev).then(function (piped) {
+          return send(msg, piped);
+        });
+      }, undefined);
     });
   }
 

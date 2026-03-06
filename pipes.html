@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>talkDOM pipes</title>
+</head>
+<body>
+  <h2>talkDOM pipes</h2>
+
+  <button sender="content get: partial.html | content apply: inner">Load with pipe</button>
+
+  <button sender="content get: partial.html | content apply: inner; raw get: partial.html | raw apply: text">Load both</button>
+
+  <button sender="content get: partial.html | sidebar apply: append">Append to sidebar</button>
+
+  <h3>content</h3>
+  <div receiver="content" accepts="inner"></div>
+
+  <h3>raw</h3>
+  <pre receiver="raw" accepts="text"></pre>
+
+  <h3>sidebar</h3>
+  <div receiver="sidebar" accepts="append"></div>
+
+  <script src="index.js"></script>
+</body>
+</html>
