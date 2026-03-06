@@ -103,11 +103,17 @@
       if (token) headers["X-CSRF-Token"] = token;
     }
     return fetch(url, { method: method, headers: headers }).then(function (r) {
+      if (!r.ok) {
+        console.error("talkDOM: " + method + " " + url + " " + r.status);
+        return Promise.reject(r.status);
+      }
       var trigger = r.headers.get("X-TalkDOM-Trigger");
       return r.text().then(function (text) {
         if (trigger) dispatchRaw(trigger);
         return text;
       });
+    }, function (err) {
+      console.error("talkDOM: " + method + " " + url + " failed", err);
     });
   }
 
