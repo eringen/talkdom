@@ -1,6 +1,6 @@
 # talkDOM (WIP)
 
-Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies, 60 lines.
+Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies.
 
 ## How it works
 
@@ -35,7 +35,10 @@ args:     ["/partial", "inner"]
 - Independent messages (`;`) fire separately
 - An element can be both sender and receiver
 - Receivers declare allowed operations via `accepts`
-- Polling with `poll` attribute
+- Polling with `poll:` keyword
+- Persistent state via `persist` attribute
+- URL persistence via `push-url` attribute
+- Server-triggered messages via `X-TalkDOM-Trigger` response header
 - Extensible methods via `talkDOM.methods`
 
 ## Usage
@@ -48,8 +51,18 @@ Include the script:
 
 ## Multiple targets
 
+A sender can address multiple receivers with `;`:
+
 ```html
 <button sender="content get: /page apply: inner; log get: /page apply: text">Load</button>
+```
+
+Multiple elements can share the same receiver name. All matching elements receive the message:
+
+```html
+<div receiver="alert" class="top-banner"></div>
+<div receiver="alert" class="bottom-banner"></div>
+<button sender="alert get: /notice apply: inner">Notify both</button>
 ```
 
 ## Pipes
@@ -74,11 +87,60 @@ Receivers declare what operations they allow.
 
 ## Polling
 
-Receivers can poll on an interval.
+Receivers poll by adding `poll:` as the last keyword with an interval (`s` or `ms`) as its argument. The method keywords before `poll:` run on each tick.
 
 ```html
-<div receiver="feed" poll="feed get: /updates apply: inner every: 10s"></div>
+<div receiver="feed get:apply: /updates inner poll: 10s"></div>
 ```
+
+Polling stops automatically when the element is removed from the DOM.
+
+## Persist
+
+Receivers with `persist` save their content to `localStorage` after each apply and restore it on page load.
+
+```html
+<div receiver="sidebar" persist></div>
+```
+
+## Push URL
+
+Senders with `push-url` update the browser URL via `history.pushState`. The message replays on back/forward navigation.
+
+```html
+<button sender="content get: /about apply: inner" push-url="/about">About</button>
+```
+
+If `push-url` has no value, the first message's first arg is used as the URL.
+
+## Server trigger
+
+The server can trigger client-side messages by setting the `X-TalkDOM-Trigger` response header. The value uses the same message syntax.
+
+```
+X-TalkDOM-Trigger: toast apply: Saved inner
+```
+
+Multiple triggers separated by `;`:
+
+```
+X-TalkDOM-Trigger: toast apply: Saved inner; counter get: /count apply: text
+```
+
+Works with pipes, extended methods, and everything else — it dispatches through the same path as sender clicks.
+
+For CORS, expose the header: `Access-Control-Expose-Headers: X-TalkDOM-Trigger`.
+
+## Request headers
+
+Every fetch sends:
+
+| Header | Value |
+|---|---|
+| `X-TalkDOM-Request` | `"true"` |
+| `X-TalkDOM-Current-URL` | `location.href` |
+| `X-TalkDOM-Receiver` | receiver name (if element has one) |
+| `X-CSRF-Token` | from `<meta name="csrf-token">` (non-GET only) |
 
 ## Self-replacing elements
 
@@ -91,5 +153,12 @@ Receivers can poll on an interval.
 ```js
 talkDOM.methods["toggle:"] = function (el, cls) {
   el.classList.toggle(cls);
+};
+```
+
+```js
+talkDOM.methods["show:"] = function (el, message) {
+  el.textContent = message;
+  el.style.display = "block";
 };
 ```
