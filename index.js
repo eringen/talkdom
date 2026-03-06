@@ -81,20 +81,36 @@
     persist(el, op);
   }
 
-  function request(method, url) {
-    return fetch(url, { method: method }).then(function (r) { return r.text(); });
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute("content") : "";
+  }
+
+  function request(method, url, receiver) {
+    var headers = {
+      "X-TalkDOM-Request": "true",
+      "X-TalkDOM-Current-URL": location.href,
+    };
+    if (receiver) {
+      headers["X-TalkDOM-Receiver"] = receiver;
+    }
+    if (method !== "GET") {
+      var token = csrfToken();
+      if (token) headers["X-CSRF-Token"] = token;
+    }
+    return fetch(url, { method: method, headers: headers }).then(function (r) { return r.text(); });
   }
 
   const methods = {
-    "get:": function (el, url) { return request("GET", url); },
-    "post:": function (el, url) { return request("POST", url); },
-    "put:": function (el, url) { return request("PUT", url); },
-    "delete:": function (el, url) { return request("DELETE", url); },
+    "get:": function (el, url) { return request("GET", url, el.getAttribute("receiver")); },
+    "post:": function (el, url) { return request("POST", url, el.getAttribute("receiver")); },
+    "put:": function (el, url) { return request("PUT", url, el.getAttribute("receiver")); },
+    "delete:": function (el, url) { return request("DELETE", url, el.getAttribute("receiver")); },
     "apply:": function (el, content, op) { apply(el, op, content); },
-    "get:apply:": function (el, url, op) { return request("GET", url).then(function (t) { apply(el, op, t); }); },
-    "post:apply:": function (el, url, op) { return request("POST", url).then(function (t) { apply(el, op, t); }); },
-    "put:apply:": function (el, url, op) { return request("PUT", url).then(function (t) { apply(el, op, t); }); },
-    "delete:apply:": function (el, url, op) { return request("DELETE", url).then(function (t) { apply(el, op, t); }); },
+    "get:apply:": function (el, url, op) { return request("GET", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
+    "post:apply:": function (el, url, op) { return request("POST", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
+    "put:apply:": function (el, url, op) { return request("PUT", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
+    "delete:apply:": function (el, url, op) { return request("DELETE", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
   };
 
   var pushing = false;
