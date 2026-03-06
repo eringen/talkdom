@@ -1,14 +1,17 @@
 (function () {
 
   function parseMessage(str) {
-    const tokens = str.trim().split(/\s+/);
-    const receiver = tokens[0];
-    const rest = tokens.slice(1);
-    const keywords = [];
-    const args = [];
-    let currentArg = [];
+    var trimmed = str.trim();
+    var tokens = trimmed.split(/\s+/);
+    var receiver = tokens[0];
+    var body = trimmed.substring(receiver.length).trim();
+    var rest = tokens.slice(1);
+    var keywords = [];
+    var args = [];
+    var currentArg = [];
 
-    for (const token of rest) {
+    for (var i = 0; i < rest.length; i++) {
+      var token = rest[i];
       if (token.endsWith(":")) {
         if (keywords.length > 0 && currentArg.length > 0) {
           args.push(currentArg.join(" "));
@@ -25,7 +28,7 @@
       args.push(currentArg.join(" "));
     }
 
-    return { receiver, selector: keywords.join(""), args };
+    return { receiver: receiver, selector: keywords.join(""), args: args, body: body };
   }
 
   function findReceiver(name) {
@@ -94,6 +97,45 @@
     "delete:apply:": function (el, url, op) { return request("DELETE", url).then(function (t) { apply(el, op, t); }); },
   };
 
+  var routeState = {};
+  var routePaused = false;
+
+  function updateRoute() {
+    if (routePaused) return;
+    var pairs = [];
+    for (var name in routeState) {
+      pairs.push(name + "=" + encodeURIComponent(routeState[name]));
+    }
+    var hash = pairs.length ? "#" + pairs.join("&") : " ";
+    if (location.hash !== hash) {
+      history.pushState(Object.assign({}, routeState), "", hash.trim() || location.pathname);
+    }
+  }
+
+  function restoreRoute() {
+    var hash = location.hash.slice(1);
+    if (!hash) return;
+    routePaused = true;
+    hash.split("&").forEach(function (pair) {
+      var idx = pair.indexOf("=");
+      if (idx === -1) return;
+      var name = pair.substring(0, idx);
+      var body = decodeURIComponent(pair.substring(idx + 1));
+      routeState[name] = body;
+      send(parseMessage(name + " " + body));
+    });
+    routePaused = false;
+  }
+
+  window.addEventListener("popstate", function (e) {
+    routePaused = true;
+    routeState = e.state || {};
+    for (var name in routeState) {
+      send(parseMessage(name + " " + routeState[name]));
+    }
+    routePaused = false;
+  });
+
   function send(msg, piped) {
     var el = findReceiver(msg.receiver);
     if (!el) {
@@ -106,7 +148,14 @@
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
-    return method(el, ...args);
+    var result = method(el, ...args);
+    if (el.hasAttribute("route") && msg.body) {
+      Promise.resolve(result).then(function () {
+        routeState[msg.receiver] = msg.body;
+        updateRoute();
+      });
+    }
+    return result;
   }
 
   function dispatch(senderEl) {
@@ -166,6 +215,7 @@
   });
 
   restore();
+  restoreRoute();
   document.querySelectorAll("[poll]").forEach(startPolling);
 
   window.talkDOM = { methods: methods };
