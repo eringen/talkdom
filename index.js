@@ -31,8 +31,17 @@
     return { receiver: receiver, selector: keywords.join(""), args: args, body: body };
   }
 
+  function receiverName(el) {
+    return el.getAttribute("receiver").trim().split(/\s+/)[0];
+  }
+
   function findReceivers(name) {
-    return document.querySelectorAll('[receiver="' + name + '"]');
+    var all = document.querySelectorAll("[receiver]");
+    var matched = [];
+    all.forEach(function (el) {
+      if (receiverName(el) === name) matched.push(el);
+    });
+    return matched;
   }
 
   function accepts(el, op) {
@@ -42,8 +51,8 @@
   }
 
   function persist(el, op) {
-    var name = el.getAttribute("receiver");
-    if (!name || !el.hasAttribute("persist")) return;
+    if (!el.hasAttribute("receiver") || !el.hasAttribute("persist")) return;
+    var name = receiverName(el);
     var key = "talkDOM:" + name;
     if (op === "outer") {
       localStorage.setItem(key, JSON.stringify({ op: op, content: el.outerHTML }));
@@ -54,8 +63,8 @@
 
   function restore() {
     document.querySelectorAll("[persist]").forEach(function (el) {
-      var name = el.getAttribute("receiver");
-      if (!name) return;
+      if (!el.hasAttribute("receiver")) return;
+      var name = receiverName(el);
       var raw = localStorage.getItem("talkDOM:" + name);
       if (!raw) return;
       var state = JSON.parse(raw);
@@ -69,7 +78,7 @@
 
   function apply(el, op, content) {
     if (!accepts(el, op)) {
-      console.error(el.getAttribute("receiver") + " does not accept " + op);
+      console.error(receiverName(el) + " does not accept " + op);
       return;
     }
     switch (op) {
@@ -101,16 +110,20 @@
     return fetch(url, { method: method, headers: headers }).then(function (r) { return r.text(); });
   }
 
+  function recName(el) {
+    return el.hasAttribute("receiver") ? receiverName(el) : "";
+  }
+
   const methods = {
-    "get:": function (el, url) { return request("GET", url, el.getAttribute("receiver")); },
-    "post:": function (el, url) { return request("POST", url, el.getAttribute("receiver")); },
-    "put:": function (el, url) { return request("PUT", url, el.getAttribute("receiver")); },
-    "delete:": function (el, url) { return request("DELETE", url, el.getAttribute("receiver")); },
+    "get:": function (el, url) { return request("GET", url, recName(el)); },
+    "post:": function (el, url) { return request("POST", url, recName(el)); },
+    "put:": function (el, url) { return request("PUT", url, recName(el)); },
+    "delete:": function (el, url) { return request("DELETE", url, recName(el)); },
     "apply:": function (el, content, op) { apply(el, op, content); },
-    "get:apply:": function (el, url, op) { return request("GET", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
-    "post:apply:": function (el, url, op) { return request("POST", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
-    "put:apply:": function (el, url, op) { return request("PUT", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
-    "delete:apply:": function (el, url, op) { return request("DELETE", url, el.getAttribute("receiver")).then(function (t) { apply(el, op, t); }); },
+    "get:apply:": function (el, url, op) { return request("GET", url, recName(el)).then(function (t) { apply(el, op, t); }); },
+    "post:apply:": function (el, url, op) { return request("POST", url, recName(el)).then(function (t) { apply(el, op, t); }); },
+    "put:apply:": function (el, url, op) { return request("PUT", url, recName(el)).then(function (t) { apply(el, op, t); }); },
+    "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el)).then(function (t) { apply(el, op, t); }); },
   };
 
   var pushing = false;
@@ -189,24 +202,24 @@
   }
 
   function startPolling(el) {
-    var raw = el.getAttribute("poll");
-    if (!raw) return;
-    var msg = parseMessage(raw);
-    if (!msg) return;
-    var everyIdx = msg.args.length - 1;
-    var interval = parseInterval(msg.args[everyIdx]);
+    var attr = el.getAttribute("receiver");
+    var msg = parseMessage(attr);
+    if (msg.selector.indexOf("poll:") === -1) return;
+    var pollIdx = msg.args.length - 1;
+    var interval = parseInterval(msg.args[pollIdx]);
     if (!interval) {
-      console.error("poll: invalid interval");
+      console.error("poll: invalid interval for " + msg.receiver);
       return;
     }
-    var selector = msg.selector.replace("every:", "");
-    var args = msg.args.slice(0, everyIdx);
+    var selector = msg.selector.replace("poll:", "");
+    var args = msg.args.slice(0, pollIdx);
+    var name = msg.receiver;
     setInterval(function () {
-      var targets = findReceivers(msg.receiver);
+      var targets = findReceivers(name);
       if (targets.length === 0) return;
       var method = methods[selector];
       if (!method) {
-        console.error(msg.receiver + " does not understand " + selector);
+        console.error(name + " does not understand " + selector);
         return;
       }
       targets.forEach(function (target) { method(target, ...args); });
@@ -220,7 +233,7 @@
 
   restore();
   replayState(history.state);
-  document.querySelectorAll("[poll]").forEach(startPolling);
+  document.querySelectorAll("[receiver]").forEach(startPolling);
 
   window.talkDOM = { methods: methods };
 
