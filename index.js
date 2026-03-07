@@ -141,7 +141,7 @@
     "post:": function (el, url) { return request("POST", url, recName(el)); },
     "put:": function (el, url) { return request("PUT", url, recName(el)); },
     "delete:": function (el, url) { return request("DELETE", url, recName(el)); },
-    "confirm:": function (el, message) { if (!confirm(message)) return Promise.reject(); },
+    "confirm:": function (el, message) { if (!confirm(message)) return Promise.reject("cancelled"); },
     "apply:": function (el, content, op) { apply(el, op, content); },
     "get:apply:": function (el, url, op) { return request("GET", url, recName(el)).then(function (t) { apply(el, op, t); }); },
     "post:apply:": function (el, url, op) { return request("POST", url, recName(el)).then(function (t) { apply(el, op, t); }); },
