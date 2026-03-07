@@ -70,7 +70,8 @@
       var name = receiverName(el);
       var raw = localStorage.getItem("talkDOM:" + name);
       if (!raw) return;
-      var state = JSON.parse(raw);
+      var state;
+      try { state = JSON.parse(raw); } catch (e) { localStorage.removeItem("talkDOM:" + name); return; }
       if (state.op === "outer") {
         el.outerHTML = state.content;
       } else {
