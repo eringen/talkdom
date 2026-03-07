@@ -5,6 +5,7 @@ Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions 
 ## How it works
 
 Receivers are named DOM elements. Senders dispatch keyword messages to receivers.
+which is currently in use @ [eringen.com](https://eringen.com)
 
 ```html
 <div receiver="content"></div>
