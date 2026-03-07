@@ -88,7 +88,7 @@
     switch (op) {
       case "inner": el.innerHTML = content; break;
       case "text": el.textContent = content; break;
-      case "append": el.innerHTML += content; break;
+      case "append": el.insertAdjacentHTML("beforeend", content); break;
       case "outer": el.outerHTML = content; break;
     }
     persist(el, op);
