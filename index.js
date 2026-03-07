@@ -194,18 +194,26 @@
     var result;
     els.forEach(function (el) {
       var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
+      var parent = el.parentNode;
+      var next = el.nextElementSibling;
       result = method(el, ...args);
+      function resolveTarget() {
+        if (el.isConnected) return el;
+        var candidate = next && next.isConnected ? next.previousElementSibling
+          : parent && parent.isConnected ? parent.lastElementChild : null;
+        return candidate || findReceivers(msg.receiver)[0];
+      }
       if (result && typeof result.then === "function") {
         result.then(function () {
-          var target = el.isConnected ? el : findReceivers(msg.receiver)[0];
+          var target = resolveTarget();
           if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
         }, function (err) {
           detail.error = err;
-          var target = el.isConnected ? el : findReceivers(msg.receiver)[0];
+          var target = resolveTarget();
           if (target) target.dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail: detail }));
         });
       } else {
-        var target = el.isConnected ? el : findReceivers(msg.receiver)[0];
+        var target = resolveTarget();
         if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
       }
     });
@@ -265,16 +273,19 @@
     var selector = msg.keywords.slice(0, -1).join("");
     var args = msg.args.slice(0, -1);
     var name = msg.receiver;
+    var cachedTargets = findReceivers(name);
     var id = setInterval(function () {
       if (!el.isConnected) { clearInterval(id); return; }
-      var targets = findReceivers(name);
-      if (targets.length === 0) return;
+      if (cachedTargets.length === 0 || !cachedTargets[0].isConnected) {
+        cachedTargets = findReceivers(name);
+      }
+      if (cachedTargets.length === 0) return;
       var method = methods[selector];
       if (!method) {
         console.error(name + " does not understand " + selector);
         return;
       }
-      targets.forEach(function (target) { method(target, ...args); });
+      cachedTargets.forEach(function (target) { method(target, ...args); });
     }, interval);
   }
 
