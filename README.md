@@ -209,3 +209,7 @@ talkDOM.methods["show:"] = function (el, message) {
   el.style.display = "block";
 };
 ```
+
+## License
+
+MIT
