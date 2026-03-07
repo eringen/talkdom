@@ -1,6 +1,6 @@
 # talkDOM (WIP)
 
-Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies.
+Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies. As a big admirer of [htmx](https://htmx.org), it was a major muse when starting this project. ALL HAIL THE HORSEY!
 
 ## How it works
 
@@ -39,6 +39,8 @@ args:     ["/partial", "inner"]
 - Persistent state via `persist` attribute
 - URL persistence via `push-url` attribute
 - Server-triggered messages via `X-TalkDOM-Trigger` response header
+- Lifecycle events (`talkdom:done`, `talkdom:error`) on receiver elements
+- Programmatic API via `talkDOM.send` (returns a promise)
 - Extensible methods via `talkDOM.methods`
 
 ## Usage
@@ -146,6 +148,51 @@ Every fetch sends:
 
 ```html
 <button receiver="btn" sender="btn get: /next-step.html apply: outer">Click me</button>
+```
+
+## Lifecycle events
+
+Every operation dispatches a `CustomEvent` on the receiver element after completion. Events bubble, so you can listen at any ancestor or `document`.
+
+| Event | When | Detail |
+|---|---|---|
+| `talkdom:done` | Method completed successfully | `{ receiver, selector, args }` |
+| `talkdom:error` | Method rejected (HTTP error, network failure, confirm cancel) | `{ receiver, selector, args, error }` |
+
+```js
+// per-element
+document.getElementById("content").addEventListener("talkdom:done", function (e) {
+  console.log(e.detail.selector, "finished");
+});
+
+// global
+document.addEventListener("talkdom:error", function (e) {
+  alert("Failed: " + e.detail.error);
+});
+```
+
+For `apply: outer`, the event fires on the replacement element (looked up by receiver name) so it still bubbles.
+
+## Programmatic API
+
+`talkDOM.send` accepts the same message syntax as the `sender` attribute and returns a promise.
+
+```js
+// single operation
+talkDOM.send("#content get:apply: /api/data inner").then(function () {
+  console.log("done");
+});
+
+// pipes
+await talkDOM.send("#content get: /api/data | #output apply: inner");
+
+// parallel chains
+await talkDOM.send("#a get:apply: /x inner ; #b get:apply: /y inner");
+
+// errors propagate
+talkDOM.send("#content get:apply: /bad-url inner").catch(function (err) {
+  console.error("failed", err);
+});
 ```
 
 ## Extending
