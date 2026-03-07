@@ -144,7 +144,7 @@
       var firstMsg = parseMessage(raw.split(";")[0].split("|")[0].trim());
       url = firstMsg.args[0] || "";
     }
-    if (url && location.pathname !== url) {
+    if (url && (location.pathname + location.search) !== url) {
       history.pushState({ sender: raw }, "", url);
     }
   }
@@ -255,7 +255,10 @@
 
   document.addEventListener("click", function (e) {
     const sender = e.target.closest("[sender]");
-    if (sender) dispatch(sender);
+    if (sender) {
+      e.preventDefault();
+      dispatch(sender);
+    }
   });
 
   restore();
