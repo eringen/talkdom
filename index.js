@@ -172,29 +172,47 @@
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
+    var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
     var result;
     els.forEach(function (el) {
       result = method(el, ...args);
+      if (result && typeof result.then === "function") {
+        result.then(function () {
+          var target = el.isConnected ? el : findReceivers(msg.receiver)[0];
+          if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
+        }, function (err) {
+          detail.error = err;
+          var target = el.isConnected ? el : findReceivers(msg.receiver)[0];
+          if (target) target.dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail: detail }));
+        });
+      } else {
+        var target = el.isConnected ? el : findReceivers(msg.receiver)[0];
+        if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
+      }
     });
     return result;
   }
 
-  function dispatchRaw(raw) {
-    raw.split(";").forEach(function (chain) {
+  function run(raw) {
+    var chains = raw.split(";").map(function (chain) {
       var trimmed = chain.trim();
-      if (!trimmed) return;
+      if (!trimmed) return Promise.resolve();
       var steps = trimmed.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
       if (steps.length === 1) {
-        send(parseMessage(steps[0]));
-        return;
+        return Promise.resolve(send(parseMessage(steps[0])));
       }
-      steps.reduce(function (prev, step) {
+      return steps.reduce(function (prev, step) {
         var msg = parseMessage(step);
         return Promise.resolve(prev).then(function (piped) {
           return send(msg, piped);
         });
-      }, undefined).catch(function () {});
+      }, undefined);
     });
+    return Promise.all(chains);
+  }
+
+  function dispatchRaw(raw) {
+    run(raw).catch(function () {});
   }
 
   function dispatch(senderEl) {
@@ -244,6 +262,6 @@
   replayState(history.state);
   document.querySelectorAll("[receiver]").forEach(startPolling);
 
-  window.talkDOM = { methods: methods };
+  window.talkDOM = { methods: methods, send: run };
 
 }());
