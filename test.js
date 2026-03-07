@@ -68,30 +68,34 @@
     return { restore: function () { window.fetch = original; }, captured: function () { return captured; } };
   }
 
+  // Helper: echo: returns its arg, used to pipe content into apply:
+  // apply: is a single-keyword method so content must come through piping.
+  talkDOM.methods["echo:"] = function (el, val) { return val; };
+
   // ── Apply operations ──────────────────────────────────
 
   suite("apply operations");
 
   test("inner sets innerHTML", function () {
     fixture('<div receiver="a1"></div>');
-    talkDOM.send("a1 apply: <b>hello</b> inner");
-    return tick().then(function () {
+    talkDOM.send("a1 echo: <b>hello</b> | a1 apply: inner");
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="a1"]').innerHTML, "<b>hello</b>", "innerHTML set");
     });
   });
 
   test("text sets textContent", function () {
     fixture('<div receiver="a2"></div>');
-    talkDOM.send("a2 apply: hello world text");
-    return tick().then(function () {
+    talkDOM.send("a2 echo: hello world | a2 apply: text");
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="a2"]').textContent, "hello world", "textContent set");
     });
   });
 
   test("append adds without destroying existing content", function () {
     fixture('<div receiver="a3"><span>old</span></div>');
-    talkDOM.send("a3 apply: <b>new</b> append");
-    return tick().then(function () {
+    talkDOM.send("a3 echo: <b>new</b> | a3 apply: append");
+    return tick(2).then(function () {
       var html = document.querySelector('[receiver="a3"]').innerHTML;
       assert(html.indexOf("<span>old</span>") !== -1, "old content preserved");
       assert(html.indexOf("<b>new</b>") !== -1, "new content appended");
@@ -102,8 +106,8 @@
     fixture('<div receiver="a4"><button id="a4btn">x</button></div>');
     var clicked = false;
     document.getElementById("a4btn").addEventListener("click", function () { clicked = true; });
-    talkDOM.send("a4 apply: <i>extra</i> append");
-    return tick().then(function () {
+    talkDOM.send("a4 echo: <i>extra</i> | a4 apply: append");
+    return tick(2).then(function () {
       document.getElementById("a4btn").click();
       assert(clicked, "listener survived append");
     });
@@ -111,8 +115,8 @@
 
   test("outer replaces element", function () {
     fixture('<div receiver="a5">old</div>');
-    talkDOM.send('a5 apply: <p receiver="a5">replaced</p> outer');
-    return tick().then(function () {
+    talkDOM.send('a5 echo: <p receiver="a5">replaced</p> | a5 apply: outer');
+    return tick(2).then(function () {
       var el = document.querySelector('[receiver="a5"]');
       assertEqual(el.tagName, "P", "tag changed to P");
       assertEqual(el.textContent, "replaced", "content replaced");
@@ -125,24 +129,24 @@
 
   test("blocks unlisted operation", function () {
     fixture('<div receiver="ac1" accepts="text"></div>');
-    talkDOM.send("ac1 apply: <b>no</b> inner");
-    return tick().then(function () {
+    talkDOM.send("ac1 echo: <b>no</b> | ac1 apply: inner");
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="ac1"]').innerHTML, "", "inner blocked");
     });
   });
 
   test("allows listed operation", function () {
     fixture('<div receiver="ac2" accepts="text inner"></div>');
-    talkDOM.send("ac2 apply: yes text");
-    return tick().then(function () {
+    talkDOM.send("ac2 echo: yes | ac2 apply: text");
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="ac2"]').textContent, "yes", "text allowed");
     });
   });
 
   test("no accepts attribute allows everything", function () {
     fixture('<div receiver="ac3"></div>');
-    talkDOM.send("ac3 apply: <em>ok</em> inner");
-    return tick().then(function () {
+    talkDOM.send("ac3 echo: <em>ok</em> | ac3 apply: inner");
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="ac3"]').innerHTML, "<em>ok</em>", "inner allowed without accepts");
     });
   });
@@ -155,8 +159,8 @@
     fixture('<div receiver="ev1"></div>');
     var detail = null;
     document.querySelector('[receiver="ev1"]').addEventListener("talkdom:done", function (e) { detail = e.detail; });
-    talkDOM.send("ev1 apply: hi text");
-    return tick().then(function () {
+    talkDOM.send("ev1 echo: hi | ev1 apply: text");
+    return tick(2).then(function () {
       assert(detail !== null, "talkdom:done fired");
       assertEqual(detail.receiver, "ev1", "detail.receiver");
       assertEqual(detail.selector, "apply:", "detail.selector");
@@ -167,8 +171,8 @@
     fixture('<div id="ev2wrap"><div receiver="ev2"></div></div>');
     var bubbled = false;
     document.getElementById("ev2wrap").addEventListener("talkdom:done", function () { bubbled = true; });
-    talkDOM.send("ev2 apply: hi text");
-    return tick().then(function () {
+    talkDOM.send("ev2 echo: hi | ev2 apply: text");
+    return tick(2).then(function () {
       assert(bubbled, "event bubbled");
     });
   });
@@ -192,8 +196,8 @@
     var details = [];
     document.getElementById("ev4a").addEventListener("talkdom:done", function (e) { details.push(e.detail); });
     document.getElementById("ev4b").addEventListener("talkdom:done", function (e) { details.push(e.detail); });
-    talkDOM.send("ev4 apply: x text");
-    return tick().then(function () {
+    talkDOM.send("ev4 echo: x | ev4 apply: text");
+    return tick(2).then(function () {
       assertEqual(details.length, 2, "both receivers got events");
       assert(details[0] !== details[1], "detail objects are separate references");
     });
@@ -202,13 +206,12 @@
   test("talkdom:done fires on replacement element after outer swap", function () {
     fixture('<div receiver="ev5">old</div>');
     var doneFired = false;
-    // Listen on fixture since original element will be replaced
     document.getElementById("fixture").addEventListener("talkdom:done", function handler(e) {
       if (e.detail.receiver === "ev5") { doneFired = true; }
       document.getElementById("fixture").removeEventListener("talkdom:done", handler);
     });
-    talkDOM.send('ev5 apply: <div receiver="ev5">new</div> outer');
-    return tick().then(function () {
+    talkDOM.send('ev5 echo: <div receiver="ev5">new</div> | ev5 apply: outer');
+    return tick(2).then(function () {
       assert(doneFired, "talkdom:done fired after outer swap");
     });
   });
@@ -291,11 +294,13 @@
 
   test("X-TalkDOM-Trigger header fires server-triggered message", function () {
     fixture('<div receiver="rq8"></div><div receiver="rq8tgt"></div>');
-    var mock = mockFetch("resp", { trigger: "rq8tgt apply: triggered text" });
+    talkDOM.methods["settxt:"] = function (el, val) { el.textContent = val; };
+    var mock = mockFetch("resp", { trigger: "rq8tgt settxt: triggered" });
     talkDOM.send("rq8 get:apply: /data inner");
     return tick(4).then(function () {
       mock.restore();
       assertEqual(document.querySelector('[receiver="rq8tgt"]').textContent, "triggered", "trigger message executed");
+      delete talkDOM.methods["settxt:"];
     });
   });
 
@@ -339,18 +344,16 @@
 
   test("value threads through pipe", function () {
     fixture('<div receiver="p1"></div>');
-    talkDOM.methods["echo:"] = function (el, val) { return val; };
     talkDOM.send("p1 echo: hello | p1 apply: text");
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="p1"]').textContent, "hello", "piped value applied");
-      delete talkDOM.methods["echo:"];
     });
   });
 
   test("rejection stops the chain", function () {
     fixture('<div receiver="p2"></div>');
     talkDOM.methods["reject:"] = function () { return Promise.reject("stop"); };
-    talkDOM.send("p2 reject: | p2 apply: nope text");
+    talkDOM.send("p2 reject: | p2 apply: text");
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="p2"]').textContent, "", "chain stopped");
       delete talkDOM.methods["reject:"];
@@ -369,11 +372,9 @@
 
   test("pipe across different receivers", function () {
     fixture('<div receiver="p4a"></div><div receiver="p4b"></div>');
-    talkDOM.methods["produce:"] = function (el, val) { return val; };
-    talkDOM.send("p4a produce: cross | p4b apply: text");
+    talkDOM.send("p4a echo: cross | p4b apply: text");
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="p4b"]').textContent, "cross", "value piped across receivers");
-      delete talkDOM.methods["produce:"];
     });
   });
 
@@ -383,8 +384,8 @@
 
   test("independent chains run in parallel", function () {
     fixture('<div receiver="s1"></div><div receiver="s2"></div>');
-    talkDOM.send("s1 apply: alpha text; s2 apply: beta text");
-    return tick().then(function () {
+    talkDOM.send("s1 echo: alpha | s1 apply: text; s2 echo: beta | s2 apply: text");
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="s1"]').textContent, "alpha", "first chain");
       assertEqual(document.querySelector('[receiver="s2"]').textContent, "beta", "second chain");
     });
@@ -393,7 +394,7 @@
   test("failure in one chain doesn't block another", function () {
     fixture('<div receiver="s3"></div><div receiver="s4"></div>');
     talkDOM.methods["reject2:"] = function () { return Promise.reject("err"); };
-    talkDOM.send("s3 reject2: ; s4 apply: survived text");
+    talkDOM.send("s3 reject2: ; s4 echo: survived | s4 apply: text");
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="s4"]').textContent, "survived", "second chain ran despite first failing");
       delete talkDOM.methods["reject2:"];
@@ -407,8 +408,8 @@
   test("persist attribute saves to localStorage on apply", function () {
     localStorage.removeItem("talkDOM:ps1");
     fixture('<div receiver="ps1" persist></div>');
-    talkDOM.send("ps1 apply: saved text");
-    return tick().then(function () {
+    talkDOM.send("ps1 echo: saved | ps1 apply: text");
+    return tick(2).then(function () {
       var stored = JSON.parse(localStorage.getItem("talkDOM:ps1"));
       assertEqual(stored.op, "text", "op saved");
       assert(stored.content.indexOf("saved") !== -1, "content saved");
@@ -419,8 +420,8 @@
   test("no persist attribute means nothing saved", function () {
     localStorage.removeItem("talkDOM:ps2");
     fixture('<div receiver="ps2"></div>');
-    talkDOM.send("ps2 apply: nope text");
-    return tick().then(function () {
+    talkDOM.send("ps2 echo: nope | ps2 apply: text");
+    return tick(2).then(function () {
       assertEqual(localStorage.getItem("talkDOM:ps2"), null, "nothing persisted");
     });
   });
@@ -428,8 +429,8 @@
   test("persist saves innerHTML for inner op", function () {
     localStorage.removeItem("talkDOM:ps3");
     fixture('<div receiver="ps3" persist></div>');
-    talkDOM.send("ps3 apply: <b>bold</b> inner");
-    return tick().then(function () {
+    talkDOM.send("ps3 echo: <b>bold</b> | ps3 apply: inner");
+    return tick(2).then(function () {
       var stored = JSON.parse(localStorage.getItem("talkDOM:ps3"));
       assertEqual(stored.op, "inner", "op is inner");
       assertEqual(stored.content, "<b>bold</b>", "innerHTML saved");
@@ -440,10 +441,7 @@
   test("corrupt localStorage handled gracefully on restore", function () {
     localStorage.setItem("talkDOM:ps4", "not valid json{{{");
     fixture('<div receiver="ps4" persist>original</div>');
-    // Manually trigger restore behavior by checking the element survived
-    // (restore runs at init, but we test the try-catch logic indirectly)
     assert(document.querySelector('[receiver="ps4"]').textContent === "original", "element not corrupted");
-    // Verify the corrupt entry would be cleaned up
     var raw = localStorage.getItem("talkDOM:ps4");
     try {
       JSON.parse(raw);
@@ -459,33 +457,30 @@
   suite("sender click delegation");
 
   test("click on sender element dispatches message", function () {
-    fixture('<button sender="sd1 apply: clicked text">Go</button><div receiver="sd1"></div>');
+    fixture('<button sender="sd1 echo: clicked | sd1 apply: text">Go</button><div receiver="sd1"></div>');
     document.querySelector("[sender]").click();
-    return tick().then(function () {
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="sd1"]').textContent, "clicked", "sender dispatched");
     });
   });
 
   test("click on child bubbles to sender", function () {
-    fixture('<button sender="sd2 apply: child text"><span id="sd2child">Go</span></button><div receiver="sd2"></div>');
+    fixture('<button sender="sd2 echo: child | sd2 apply: text"><span id="sd2child">Go</span></button><div receiver="sd2"></div>');
     document.getElementById("sd2child").click();
-    return tick().then(function () {
+    return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="sd2"]').textContent, "child", "child click delegated");
     });
   });
 
   test("sender click on anchor prevents default", function () {
-    fixture('<a href="/nope" sender="sd3 apply: link text">Link</a><div receiver="sd3"></div>');
+    fixture('<a href="/nope" sender="sd3 echo: link | sd3 apply: text">Link</a><div receiver="sd3"></div>');
     var prevented = false;
-    var link = document.querySelector("[sender]");
-    var origAdd = link.addEventListener;
-    // Listen at fixture level to catch the prevented event
     document.getElementById("fixture").addEventListener("click", function handler(e) {
       if (e.target.closest("[sender]")) prevented = e.defaultPrevented;
       document.getElementById("fixture").removeEventListener("click", handler);
     });
-    link.click();
-    return tick().then(function () {
+    document.querySelector("[sender]").click();
+    return tick(2).then(function () {
       assert(prevented, "default prevented on anchor sender");
     });
   });
@@ -554,8 +549,8 @@
 
   test("message delivered to all matching receivers", function () {
     fixture('<div receiver="mr1" class="a"></div><div receiver="mr1" class="b"></div>');
-    talkDOM.send("mr1 apply: multi text");
-    return tick().then(function () {
+    talkDOM.send("mr1 echo: multi | mr1 apply: text");
+    return tick(2).then(function () {
       var els = document.querySelectorAll('[receiver="mr1"]');
       assertEqual(els[0].textContent, "multi", "first receiver");
       assertEqual(els[1].textContent, "multi", "second receiver");
@@ -570,7 +565,7 @@
     var original = console.error;
     var msg = "";
     console.error = function (m) { msg = m; };
-    talkDOM.send("zzz_nonexistent apply: x text");
+    talkDOM.send("zzz_nonexistent echo: x");
     return tick().then(function () {
       console.error = original;
       assert(msg.indexOf("zzz_nonexistent") !== -1, "error mentions receiver name");
@@ -607,7 +602,7 @@
 
   test("talkDOM.send returns a promise", function () {
     fixture('<div receiver="api1"></div>');
-    var ret = talkDOM.send("api1 apply: x text");
+    var ret = talkDOM.send("api1 echo: x | api1 apply: text");
     assert(ret && typeof ret.then === "function", "returns thenable");
     return ret;
   });
