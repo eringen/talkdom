@@ -212,4 +212,4 @@ talkDOM.methods["show:"] = function (el, message) {
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).
