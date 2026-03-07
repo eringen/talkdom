@@ -191,9 +191,9 @@
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
-    var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
     var result;
     els.forEach(function (el) {
+      var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
       result = method(el, ...args);
       if (result && typeof result.then === "function") {
         result.then(function () {
