@@ -1,5 +1,7 @@
 (function () {
 
+  // Parse "receiver keyword: arg keyword: arg" into structured message object.
+  // Tokens ending with ":" are keywords, everything else fills args.
   function parseMessage(str) {
     var trimmed = str.trim();
     var tokens = trimmed.split(/\s+/);
@@ -31,20 +33,25 @@
     return { receiver: receiver, selector: keywords.join(""), keywords: keywords, args: args, body: body };
   }
 
+  // Extract the first word from the receiver attribute (the name).
   function receiverName(el) {
     return el.getAttribute("receiver").trim().split(/\s+/)[0];
   }
 
+  // Find all elements whose receiver attribute contains the given name.
   function findReceivers(name) {
     return document.querySelectorAll('[receiver~="' + name + '"]');
   }
 
+  // Check if a receiver allows a given apply operation (inner, text, append, outer).
+  // No "accepts" attribute means everything is allowed.
   function accepts(el, op) {
     var attr = el.getAttribute("accepts");
     if (!attr) return true;
     return attr.split(/\s+/).indexOf(op) !== -1;
   }
 
+  // Save receiver content to localStorage after apply, keyed by receiver name.
   function persist(el, op) {
     if (!el.hasAttribute("receiver") || !el.hasAttribute("persist")) return;
     var name = receiverName(el);
@@ -56,6 +63,7 @@
     }
   }
 
+  // On page load, restore persisted receiver content from localStorage.
   function restore() {
     document.querySelectorAll("[persist]").forEach(function (el) {
       if (!el.hasAttribute("receiver")) return;
@@ -71,6 +79,7 @@
     });
   }
 
+  // Apply content to an element using the specified operation (inner, text, append, outer).
   function apply(el, op, content) {
     if (!accepts(el, op)) {
       console.error(receiverName(el) + " does not accept " + op);
@@ -90,6 +99,8 @@
     return meta ? meta.getAttribute("content") : "";
   }
 
+  // Perform a fetch with talkDOM headers. Returns a promise resolving to response text.
+  // Fires server-triggered messages from X-TalkDOM-Trigger header if present.
   function request(method, url, receiver) {
     var headers = {
       "X-TalkDOM-Request": "true",
@@ -122,6 +133,8 @@
     return el.hasAttribute("receiver") ? receiverName(el) : "";
   }
 
+  // Built-in method table. Each method receives (el, ...args) from the parsed message.
+  // Extensible via talkDOM.methods at runtime.
   const methods = {
     "get:": function (el, url) { return request("GET", url, recName(el)); },
     "post:": function (el, url) { return request("POST", url, recName(el)); },
@@ -137,6 +150,7 @@
 
   var pushing = false;
 
+  // Push URL to browser history. Uses push-url attr value, or falls back to first message arg.
   function pushUrl(senderEl, raw) {
     if (!senderEl.hasAttribute("push-url")) return;
     var url = senderEl.getAttribute("push-url");
@@ -149,6 +163,7 @@
     }
   }
 
+  // Re-dispatch a sender message from history state (back/forward navigation).
   function replayState(state) {
     if (!state || !state.sender) return;
     pushing = true;
@@ -160,6 +175,8 @@
     replayState(e.state);
   });
 
+  // Deliver a parsed message to all matching receivers. Fires talkdom:done or talkdom:error
+  // lifecycle events on the receiver element (or its replacement if outer-swapped).
   function send(msg, piped) {
     var els = findReceivers(msg.receiver);
     if (els.length === 0) {
@@ -193,6 +210,8 @@
     return result;
   }
 
+  // Programmatic API: parse and execute a raw message string (supports pipes and semicolons).
+  // Returns a promise that resolves when all chains complete.
   function run(raw) {
     var chains = raw.split(";").map(function (chain) {
       var trimmed = chain.trim();
@@ -211,10 +230,12 @@
     return Promise.all(chains);
   }
 
+  // Fire-and-forget dispatch used by declarative senders and server triggers.
   function dispatchRaw(raw) {
     run(raw).catch(function () {});
   }
 
+  // Entry point for a sender click: dispatch its message and optionally push URL.
   function dispatch(senderEl) {
     var raw = senderEl.getAttribute("sender");
     dispatchRaw(raw);
@@ -228,6 +249,8 @@
     return match[2] === "s" ? n * 1000 : n;
   }
 
+  // Set up a repeating interval for receivers with a poll: keyword.
+  // Stops automatically when the element is removed from the DOM.
   function startPolling(el) {
     var attr = el.getAttribute("receiver");
     var msg = parseMessage(attr);
@@ -253,6 +276,7 @@
     }, interval);
   }
 
+  // Global click handler: delegate to any element with a sender attribute.
   document.addEventListener("click", function (e) {
     const sender = e.target.closest("[sender]");
     if (sender) {
