@@ -93,6 +93,7 @@
       case "outer": el.outerHTML = content; break;
     }
     persist(el, op);
+    return content;
   }
 
   function csrfToken() {
