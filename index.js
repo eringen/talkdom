@@ -114,6 +114,7 @@
     if (method !== "GET") {
       var token = csrfToken();
       if (token) headers["X-CSRF-Token"] = token;
+      else console.warn("talkDOM: no CSRF token found for " + method + " " + url);
     }
     return fetch(url, { method: method, headers: headers }).then(function (r) {
       if (!r.ok) {
@@ -144,10 +145,10 @@
     "delete:": function (el, url) { return request("DELETE", url, recName(el)); },
     "confirm:": function (el, message) { if (!confirm(message)) return Promise.reject("cancelled"); },
     "apply:": function (el, content, op) { return apply(el, op, content); },
-    "get:apply:": function (el, url, op) { return request("GET", url, recName(el)).then(function (t) { apply(el, op, t); }); },
-    "post:apply:": function (el, url, op) { return request("POST", url, recName(el)).then(function (t) { apply(el, op, t); }); },
-    "put:apply:": function (el, url, op) { return request("PUT", url, recName(el)).then(function (t) { apply(el, op, t); }); },
-    "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el)).then(function (t) { apply(el, op, t); }); },
+    "get:apply:": function (el, url, op) { return request("GET", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
+    "post:apply:": function (el, url, op) { return request("POST", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
+    "put:apply:": function (el, url, op) { return request("PUT", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
+    "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
   };
 
   var pushing = false;
@@ -242,7 +243,7 @@
 
   // Fire-and-forget dispatch used by declarative senders and server triggers.
   function dispatchRaw(raw) {
-    run(raw).catch(function () {});
+    run(raw).catch(function (err) { console.warn("talkDOM:", err); });
   }
 
   // Entry point for a sender click: dispatch its message and optionally push URL.
