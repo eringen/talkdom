@@ -1,5 +1,7 @@
 # talkDOM
 
+[talkdom.org](https://talkdom.org)
+
 Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies. As a big admirer of [htmx](https://htmx.org), it was a major muse when starting this project. ALL HAIL THE HORSEY!
 
 ## How it works
