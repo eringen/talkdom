@@ -13,6 +13,7 @@
     "build": "mkdir -p dist && terser index.js -o dist/talkdom.min.js -c -m",
     "prepublishOnly": "npm run build"
   },
+  "homepage": "https://talkdom.org",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eringen/talkdom.git"
