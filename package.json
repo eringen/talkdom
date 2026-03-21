@@ -10,7 +10,9 @@
     "dist/"
   ],
   "scripts": {
-    "build": "mkdir -p dist && terser index.js -o dist/talkdom.min.js -c -m",
+    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && terser index.js -o dist/talkdom.min.js -c -m --source-map",
+    "test": "node test-runner.js",
+    "lint": "eslint index.js",
     "prepublishOnly": "npm run build"
   },
   "homepage": "https://talkdom.org",
@@ -27,6 +29,8 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "eslint": "^10.1.0",
+    "jsdom": "^29.0.1",
     "terser": "^5.46.1"
   }
 }

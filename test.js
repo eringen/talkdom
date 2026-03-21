@@ -196,7 +196,7 @@
     var details = [];
     document.getElementById("ev4a").addEventListener("talkdom:done", function (e) { details.push(e.detail); });
     document.getElementById("ev4b").addEventListener("talkdom:done", function (e) { details.push(e.detail); });
-    talkDOM.send("ev4 echo: x | ev4 apply: text");
+    talkDOM.send("ev4 echo: x");
     return tick(2).then(function () {
       assertEqual(details.length, 2, "both receivers got events");
       assert(details[0] !== details[1], "detail objects are separate references");
@@ -223,7 +223,7 @@
   test("get:apply: fetches and applies content", function () {
     fixture('<div receiver="rq1"></div>');
     var mock = mockFetch("<em>fetched</em>");
-    talkDOM.send("rq1 get:apply: /data inner");
+    talkDOM.send("rq1 get: /data apply: inner");
     return tick(3).then(function () {
       mock.restore();
       assertEqual(document.querySelector('[receiver="rq1"]').innerHTML, "<em>fetched</em>", "content applied");
@@ -475,9 +475,9 @@
   test("sender click on anchor prevents default", function () {
     fixture('<a href="/nope" sender="sd3 echo: link | sd3 apply: text">Link</a><div receiver="sd3"></div>');
     var prevented = false;
-    document.getElementById("fixture").addEventListener("click", function handler(e) {
+    document.addEventListener("click", function handler(e) {
       if (e.target.closest("[sender]")) prevented = e.defaultPrevented;
-      document.getElementById("fixture").removeEventListener("click", handler);
+      document.removeEventListener("click", handler);
     });
     document.querySelector("[sender]").click();
     return tick(2).then(function () {
