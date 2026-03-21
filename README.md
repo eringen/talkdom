@@ -46,9 +46,14 @@ args:     ["/partial", "inner"]
 
 ## Usage
 
-Include the script:
-
 ```html
+<!-- jsDelivr -->
+<script src="https://cdn.jsdelivr.net/npm/talkdom/dist/talkdom.min.js"></script>
+
+<!-- unpkg -->
+<script src="https://unpkg.com/talkdom/dist/talkdom.min.js"></script>
+
+<!-- local -->
 <script src="index.js"></script>
 ```
 

@@ -1,0 +1,31 @@
+{
+  "name": "talkdom",
+  "version": "0.1.0",
+  "description": "Smalltalk-inspired message passing for the DOM",
+  "main": "index.js",
+  "jsdelivr": "dist/talkdom.min.js",
+  "unpkg": "dist/talkdom.min.js",
+  "files": [
+    "index.js",
+    "dist/"
+  ],
+  "scripts": {
+    "build": "mkdir -p dist && terser index.js -o dist/talkdom.min.js -c -m",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eringen/talkdom.git"
+  },
+  "keywords": [
+    "dom",
+    "html",
+    "declarative",
+    "htmx",
+    "smalltalk"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "terser": "^5.46.1"
+  }
+}
