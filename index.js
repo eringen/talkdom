@@ -273,10 +273,17 @@
 
   // Set up a repeating interval for receivers with a poll: keyword.
   // Stops automatically when the element is removed from the DOM.
+  var activePollers = 0;
+  var maxPollers = 64;
+
   function startPolling(el) {
     var attr = el.getAttribute("receiver");
     var msg = parseMessage(attr);
     if (msg.keywords[msg.keywords.length - 1] !== "poll:") return;
+    if (activePollers >= maxPollers) {
+      console.warn("talkDOM: max pollers (" + maxPollers + ") reached, ignoring " + msg.receiver);
+      return;
+    }
     var interval = parseInterval(msg.args[msg.args.length - 1]);
     if (!interval) {
       console.error("poll: invalid interval for " + msg.receiver);
@@ -286,8 +293,9 @@
     var args = msg.args.slice(0, -1);
     var name = msg.receiver;
     var cachedTargets = findReceivers(name);
+    activePollers++;
     var id = setInterval(function () {
-      if (!el.isConnected) { clearInterval(id); return; }
+      if (!el.isConnected) { clearInterval(id); activePollers--; return; }
       if (cachedTargets.length === 0 || !cachedTargets[0].isConnected) {
         cachedTargets = findReceivers(name);
       }
@@ -314,6 +322,11 @@
   replayState(history.state);
   document.querySelectorAll("[receiver]").forEach(startPolling);
 
-  window.talkDOM = { methods: methods, send: run };
+  window.talkDOM = {
+    methods: methods,
+    send: run,
+    get maxPollers() { return maxPollers; },
+    set maxPollers(n) { maxPollers = n; },
+  };
 
 }());
