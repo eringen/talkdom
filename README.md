@@ -45,6 +45,7 @@ args:     ["/partial", "inner"]
 - Lifecycle events (`talkdom:done`, `talkdom:error`) on receiver elements
 - Programmatic API via `talkDOM.send` (returns a promise)
 - Extensible methods via `talkDOM.methods`
+- Configurable max pollers via `talkDOM.maxPollers`
 
 ## Usage
 
@@ -103,7 +104,11 @@ Receivers poll by adding `poll:` as the last keyword with an interval (`s` or `m
 <div receiver="feed get:apply: /updates inner poll: 10s"></div>
 ```
 
-Polling stops automatically when the element is removed from the DOM.
+Polling stops automatically when the element is removed from the DOM. A maximum of 64 concurrent pollers is enforced by default. Adjust via:
+
+```js
+talkDOM.maxPollers = 128;
+```
 
 ## Persist
 
