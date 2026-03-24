@@ -206,9 +206,15 @@
     var result;
     els.forEach(function (el) {
       var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
+      // Snapshot DOM neighbors before the method runs. If the method does an
+      // outer swap, `el` is replaced and disconnected, so we need these anchors
+      // to locate the replacement element for dispatching lifecycle events.
       var parent = el.parentNode;
       var next = el.nextElementSibling;
       result = method(el, ...args);
+      // After an outer swap `el` is gone. Walk from the snapshotted sibling or
+      // parent to find the element that took its place; fall back to a fresh
+      // receiver query if the DOM was restructured.
       function resolveTarget() {
         if (el.isConnected) return el;
         var candidate = next && next.isConnected ? next.previousElementSibling
@@ -235,13 +241,18 @@
   // Programmatic API: parse and execute a raw message string (supports pipes and semicolons).
   // Returns a promise that resolves when all chains complete.
   function run(raw) {
+    // Semicolons split into independent chains that run in parallel.
     var chains = raw.split(";").map(function (chain) {
       var trimmed = chain.trim();
       if (!trimmed) return Promise.resolve();
+      // Pipes split a chain into sequential steps where each step's return
+      // value is fed as the first argument to the next step.
       var steps = trimmed.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
       if (steps.length === 1) {
         return Promise.resolve(send(parseMessage(steps[0])));
       }
+      // Reduce builds a promise chain: each step waits for the previous one,
+      // then passes its resolved value (piped) into send().
       return steps.reduce(function (prev, step) {
         var msg = parseMessage(step);
         return Promise.resolve(prev).then(function (piped) {
@@ -249,6 +260,7 @@
         });
       }, undefined);
     });
+    // All independent chains resolve together.
     return Promise.all(chains);
   }
 
