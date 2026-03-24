@@ -223,6 +223,35 @@ talkDOM.methods["show:"] = function (el, message) {
 };
 ```
 
+## Security
+
+talkDOM does **not** sanitize HTML. Content from `get:apply:`, `post:apply:`, server triggers, and piped `apply:` is inserted via `innerHTML` / `insertAdjacentHTML` / `outerHTML` as-is. You are responsible for ensuring that server responses do not contain untrusted markup.
+
+The `persist` attribute stores receiver content in `localStorage` in plain text. Do not use it for sensitive data.
+
+CSRF tokens are read from `<meta name="csrf-token">` and sent automatically on non-GET requests. Make sure this tag is present if your server requires CSRF protection.
+
+## Browser compatibility
+
+talkDOM works in all modern browsers. No polyfills needed.
+
+| Browser | Minimum version |
+|---------|-----------------|
+| Chrome  | 51+             |
+| Firefox | 49+             |
+| Safari  | 10+             |
+| Edge    | 79+ (Chromium)  |
+
+IE is not supported.
+
+## Performance
+
+Receiver lookups are cached and invalidated automatically via `MutationObserver`. Repeated dispatches to the same receiver name within a stable DOM hit the cache.
+
+Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM.maxPollers`). Pollers clean up automatically when their element is removed from the DOM.
+
+For most pages, talkDOM adds negligible overhead. On pages with thousands of receivers, keep in mind that `querySelectorAll` runs once per unique receiver name per DOM mutation cycle.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
