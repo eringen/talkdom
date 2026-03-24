@@ -38,9 +38,20 @@
     return el.getAttribute("receiver").trim().split(/\s+/)[0];
   }
 
+  // Receiver cache: maps name -> NodeList, invalidated by DOM mutations.
+  var receiverCache = {};
+  var cacheValid = false;
+
+  new MutationObserver(function () { cacheValid = false; })
+    .observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["receiver"] });
+
   // Find all elements whose receiver attribute contains the given name.
   function findReceivers(name) {
-    return document.querySelectorAll('[receiver~="' + name + '"]');
+    if (!cacheValid) { receiverCache = {}; cacheValid = true; }
+    if (receiverCache[name]) return receiverCache[name];
+    var result = document.querySelectorAll('[receiver~="' + name + '"]');
+    receiverCache[name] = result;
+    return result;
   }
 
   // Check if a receiver allows a given apply operation (inner, text, append, outer).

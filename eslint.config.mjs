@@ -19,6 +19,7 @@ export default [
         CustomEvent: "readonly",
         Promise: "readonly",
         Headers: "readonly",
+        MutationObserver: "readonly",
       },
     },
     rules: {
