@@ -321,6 +321,7 @@
     var args = msg.args.slice(0, -1);
     var name = msg.receiver;
     var cachedTargets = findReceivers(name);
+    var method = methods[selector];
     activePollers++;
     var id = setInterval(function () {
       if (!el.isConnected) { clearInterval(id); activePollers--; return; }
@@ -328,7 +329,7 @@
         cachedTargets = findReceivers(name);
       }
       if (cachedTargets.length === 0) return;
-      var method = methods[selector];
+      if (!method) method = methods[selector];
       if (!method) {
         console.error(name + " does not understand " + selector);
         return;
