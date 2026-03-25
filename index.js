@@ -107,9 +107,14 @@
     return content;
   }
 
+  var csrfMeta = null;
+
   function csrfToken() {
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    return meta ? meta.getAttribute("content") : "";
+    // Cache the element reference; re-query only if not found yet or removed.
+    if (!csrfMeta || !csrfMeta.isConnected) {
+      csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    }
+    return csrfMeta ? csrfMeta.getAttribute("content") : "";
   }
 
   // Perform a fetch with talkDOM headers. Returns a promise resolving to response text.
