@@ -2,7 +2,7 @@
 
 All notable changes to talkDOM are documented in this file.
 
-## [0.3.0] - 2026-03-25
+## [0.3.1] - 2026-03-25
 
 ### Changed
 - CSRF meta tag element is now cached; DOM query only runs on first lookup or if the element is removed
@@ -11,6 +11,9 @@ All notable changes to talkDOM are documented in this file.
 - Whitespace regex precompiled as a shared `WS` constant across `parseMessage` and `accepts`
 - `resolveTarget` hoisted out of `send()` forEach loop to eliminate per-receiver closure allocation
 - Polling method lookup cached at setup time; re-queried only if initially missing
+- `accepts()` uses string boundary matching instead of array split + indexOf
+- `run()` fast-paths single messages without pipes or semicolons to skip intermediate allocations
+- `receiverCache` uses `Object.create(null)` to avoid prototype chain lookups
 
 ## [0.1.5] - 2026-03-24
 

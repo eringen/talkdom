@@ -43,7 +43,7 @@
   }
 
   // Receiver cache: maps name -> NodeList, invalidated by DOM mutations.
-  var receiverCache = {};
+  var receiverCache = Object.create(null);
   var cacheValid = false;
 
   new MutationObserver(function () { cacheValid = false; })
@@ -51,7 +51,7 @@
 
   // Find all elements whose receiver attribute contains the given name.
   function findReceivers(name) {
-    if (!cacheValid) { receiverCache = {}; cacheValid = true; }
+    if (!cacheValid) { receiverCache = Object.create(null); cacheValid = true; }
     if (receiverCache[name]) return receiverCache[name];
     var result = document.querySelectorAll('[receiver~="' + name + '"]');
     receiverCache[name] = result;
@@ -63,7 +63,7 @@
   function accepts(el, op) {
     var attr = el.getAttribute("accepts");
     if (!attr) return true;
-    return attr.split(WS).indexOf(op) !== -1;
+    return (" " + attr + " ").indexOf(" " + op + " ") !== -1;
   }
 
   // Save receiver content to localStorage after apply, keyed by receiver name.
@@ -257,13 +257,18 @@
   // Programmatic API: parse and execute a raw message string (supports pipes and semicolons).
   // Returns a promise that resolves when all chains complete.
   function run(raw) {
+    var trimmed = raw.trim();
+    // Fast path: no pipes or semicolons (most common case).
+    if (trimmed.indexOf(";") === -1 && trimmed.indexOf("|") === -1) {
+      return Promise.resolve(send(parseMessage(trimmed))).then(function (r) { return [r]; });
+    }
     // Semicolons split into independent chains that run in parallel.
-    var chains = raw.split(";").map(function (chain) {
-      var trimmed = chain.trim();
-      if (!trimmed) return Promise.resolve();
+    var chains = trimmed.split(";").map(function (chain) {
+      var step = chain.trim();
+      if (!step) return Promise.resolve();
       // Pipes split a chain into sequential steps where each step's return
       // value is fed as the first argument to the next step.
-      var steps = trimmed.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
+      var steps = step.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
       if (steps.length === 1) {
         return Promise.resolve(send(parseMessage(steps[0])));
       }
