@@ -35,7 +35,9 @@
 
   // Extract the first word from the receiver attribute (the name).
   function receiverName(el) {
-    return el.getAttribute("receiver").trim().split(/\s+/)[0];
+    var attr = el.getAttribute("receiver").trim();
+    var sp = attr.indexOf(" ");
+    return sp === -1 ? attr : attr.substring(0, sp);
   }
 
   // Receiver cache: maps name -> NodeList, invalidated by DOM mutations.
