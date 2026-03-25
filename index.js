@@ -204,6 +204,16 @@
     replayState(e.state);
   });
 
+  // After an outer swap `el` is gone. Walk from the snapshotted sibling or
+  // parent to find the element that took its place; fall back to a fresh
+  // receiver query if the DOM was restructured.
+  function resolveTarget(el, next, parent, name) {
+    if (el.isConnected) return el;
+    var candidate = next && next.isConnected ? next.previousElementSibling
+      : parent && parent.isConnected ? parent.lastElementChild : null;
+    return candidate || findReceivers(name)[0];
+  }
+
   // Deliver a parsed message to all matching receivers. Fires talkdom:done or talkdom:error
   // lifecycle events on the receiver element (or its replacement if outer-swapped).
   function send(msg, piped) {
@@ -227,26 +237,17 @@
       var parent = el.parentNode;
       var next = el.nextElementSibling;
       result = method(el, ...args);
-      // After an outer swap `el` is gone. Walk from the snapshotted sibling or
-      // parent to find the element that took its place; fall back to a fresh
-      // receiver query if the DOM was restructured.
-      function resolveTarget() {
-        if (el.isConnected) return el;
-        var candidate = next && next.isConnected ? next.previousElementSibling
-          : parent && parent.isConnected ? parent.lastElementChild : null;
-        return candidate || findReceivers(msg.receiver)[0];
-      }
       if (result && typeof result.then === "function") {
         result.then(function () {
-          var target = resolveTarget();
+          var target = resolveTarget(el, next, parent, msg.receiver);
           if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
         }, function (err) {
           detail.error = err;
-          var target = resolveTarget();
+          var target = resolveTarget(el, next, parent, msg.receiver);
           if (target) target.dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail: detail }));
         });
       } else {
-        var target = resolveTarget();
+        var target = resolveTarget(el, next, parent, msg.receiver);
         if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
       }
     });
