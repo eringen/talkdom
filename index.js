@@ -174,8 +174,14 @@
     if (!senderEl.hasAttribute("push-url")) return;
     var url = senderEl.getAttribute("push-url");
     if (!url) {
-      var firstMsg = parseMessage(raw.split(";")[0].split("|")[0].trim());
-      url = firstMsg.args[0] || "";
+      // Extract the first arg from the first step without a full parseMessage call.
+      // Pattern: "receiver keyword: arg ..." -- grab the token after the first ":"
+      var first = raw.split(";")[0].split("|")[0].trim();
+      var colonIdx = first.indexOf(":");
+      if (colonIdx !== -1) {
+        var afterColon = first.substring(colonIdx + 1).trim();
+        url = afterColon.split(/\s/)[0] || "";
+      }
     }
     if (url && (location.pathname + location.search) !== url) {
       history.pushState({ sender: raw }, "", url);
