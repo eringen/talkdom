@@ -1,10 +1,12 @@
 (function () {
 
+  var WS = /\s+/;
+
   // Parse "receiver keyword: arg keyword: arg" into structured message object.
   // Tokens ending with ":" are keywords, everything else fills args.
   function parseMessage(str) {
     var trimmed = str.trim();
-    var tokens = trimmed.split(/\s+/);
+    var tokens = trimmed.split(WS);
     var receiver = tokens[0];
     var body = trimmed.substring(receiver.length).trim();
     var rest = tokens.slice(1);
@@ -61,7 +63,7 @@
   function accepts(el, op) {
     var attr = el.getAttribute("accepts");
     if (!attr) return true;
-    return attr.split(/\s+/).indexOf(op) !== -1;
+    return attr.split(WS).indexOf(op) !== -1;
   }
 
   // Save receiver content to localStorage after apply, keyed by receiver name.
