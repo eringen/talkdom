@@ -248,7 +248,11 @@ IE is not supported.
 
 Receiver lookups are cached and invalidated automatically via `MutationObserver`. Repeated dispatches to the same receiver name within a stable DOM hit the cache.
 
-Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM.maxPollers`). Pollers clean up automatically when their element is removed from the DOM.
+Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM.maxPollers`). Pollers clean up automatically when their element is removed from the DOM. Method lookups are cached at poll setup time.
+
+The CSRF meta tag element is cached after the first lookup and only re-queried if removed from the DOM.
+
+Whitespace regex patterns are precompiled and shared across the library. Internal helpers like `receiverName` and `resolveTarget` avoid unnecessary allocations.
 
 For most pages, talkDOM adds negligible overhead. On pages with thousands of receivers, keep in mind that `querySelectorAll` runs once per unique receiver name per DOM mutation cycle.
 
