@@ -223,6 +223,100 @@ talkDOM.methods["show:"] = function (el, message) {
 };
 ```
 
+## WebSocket plugin
+
+The optional `websocket.js` plugin adds server-push via WebSocket as an alternative to polling. Load it after the core library:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/talkdom/dist/talkdom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/talkdom/dist/talkdom-ws.min.js"></script>
+```
+
+### Receiving
+
+Add `ws:` as the last keyword on a receiver with a WebSocket URL as its argument. The server pushes content — no client-side method keywords needed.
+
+```html
+<div receiver="feed ws: ws://localhost:3000/updates"></div>
+```
+
+The server sends JSON messages to control what gets applied:
+
+```json
+{"receiver": "feed", "content": "<p>New post</p>", "op": "append"}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `receiver` | yes | Target receiver name |
+| `content` | no | HTML or text content |
+| `op` | no | `inner` (default), `text`, `append`, `outer` |
+
+Omitting `receiver` broadcasts to all receivers on that connection.
+
+The server can also send raw talkDOM message syntax instead of JSON:
+
+```
+feed apply: Updated! text
+```
+
+This dispatches through the same path as sender clicks and server triggers.
+
+### Sending
+
+The plugin registers a `ws:send:` method. The receiver element's value (for inputs/textareas/selects) or text content is sent over the WebSocket connection.
+
+```html
+<input receiver="chatbox" type="text">
+<button sender="chatbox ws:send: ws://localhost:3000/chat">Send</button>
+```
+
+### Shared connections
+
+Multiple receivers pointing to the same URL share a single WebSocket connection. The server routes messages by the `receiver` field in JSON.
+
+```html
+<div receiver="messages ws: ws://localhost:3000/live"></div>
+<div receiver="presence ws: ws://localhost:3000/live"></div>
+```
+
+### Reconnection
+
+Connections automatically reconnect with exponential backoff (1s initial, 30s max, ±25% jitter). Backoff resets on successful connection. Reconnection stops when all receivers for a URL are removed from the DOM.
+
+### Lifecycle events
+
+| Event | Detail |
+|---|---|
+| `talkdom:ws:open` | `{ url }` |
+| `talkdom:ws:close` | `{ url, code, reason }` |
+| `talkdom:ws:error` | `{ url }` |
+
+Events fire on all receiver elements subscribed to the URL and bubble.
+
+```js
+document.addEventListener("talkdom:ws:open", function (e) {
+  console.log("connected to", e.detail.url);
+});
+```
+
+Incoming messages also fire the standard `talkdom:done` event on the target receiver after applying content.
+
+### Programmatic API
+
+```js
+talkDOM.ws.connect("ws://localhost:3000/live");
+talkDOM.ws.send("ws://localhost:3000/live", { action: "subscribe", channel: "news" });
+talkDOM.ws.send("ws://localhost:3000/live", "plain string");
+talkDOM.ws.disconnect("ws://localhost:3000/live");
+
+talkDOM.ws.connections;      // { "ws://...": { state: 1, receivers: 2 } }
+talkDOM.ws.maxConnections;   // default 16
+talkDOM.ws.maxConnections = 32;
+```
+
+`talkDOM.ws.send` returns `true` if sent, `false` if the connection is not open.
+
 ## Security
 
 talkDOM does **not** sanitize HTML. Content from `get:apply:`, `post:apply:`, server triggers, and piped `apply:` is inserted via `innerHTML` / `insertAdjacentHTML` / `outerHTML` as-is. You are responsible for ensuring that server responses do not contain untrusted markup.
