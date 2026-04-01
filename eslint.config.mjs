@@ -28,4 +28,31 @@ export default [
       "eqeqeq": ["warn", "always"],
     },
   },
+  {
+    files: ["websocket.js"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "script",
+      globals: {
+        document: "readonly",
+        window: "readonly",
+        console: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        CustomEvent: "readonly",
+        Promise: "readonly",
+        Set: "readonly",
+        MutationObserver: "readonly",
+        WebSocket: "readonly",
+        talkDOM: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { args: "none" }],
+      "no-undef": "error",
+      "eqeqeq": ["warn", "always"],
+    },
+  },
 ];

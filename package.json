@@ -7,10 +7,11 @@
   "unpkg": "dist/talkdom.min.js",
   "files": [
     "index.js",
+    "websocket.js",
     "dist/"
   ],
   "scripts": {
-    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && terser index.js -o dist/talkdom.min.js -c -m --source-map",
+    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && terser index.js -o dist/talkdom.min.js -c -m --source-map && terser websocket.js -o dist/talkdom-ws.min.js -c -m --source-map",
     "test": "node test-runner.js",
     "lint": "eslint index.js",
     "prepublishOnly": "npm run build"
