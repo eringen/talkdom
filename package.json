@@ -2,18 +2,29 @@
   "name": "talkdom",
   "version": "0.4.0",
   "description": "Smalltalk-inspired message passing for the DOM",
-  "main": "index.js",
+  "type": "module",
+  "main": "dist/talkdom.min.js",
+  "module": "dist/talkdom.esm.js",
+  "exports": {
+    ".": {
+      "import": "./dist/talkdom.esm.js",
+      "require": "./dist/talkdom.min.js"
+    },
+    "./ws": {
+      "import": "./dist/talkdom-ws.esm.js",
+      "require": "./dist/talkdom-ws.min.js"
+    }
+  },
   "jsdelivr": "dist/talkdom.min.js",
   "unpkg": "dist/talkdom.min.js",
   "files": [
-    "index.js",
-    "websocket.js",
+    "src/",
     "dist/"
   ],
   "scripts": {
-    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && terser index.js -o dist/talkdom.min.js -c -m --source-map && terser websocket.js -o dist/talkdom-ws.min.js -c -m --source-map",
+    "build": "node build.js",
     "test": "node test-runner.js",
-    "lint": "eslint index.js",
+    "lint": "eslint src/",
     "prepublishOnly": "npm run build"
   },
   "homepage": "https://talkdom.org",
@@ -30,8 +41,8 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "eslint": "^10.1.0",
-    "jsdom": "^29.0.1",
-    "terser": "^5.46.1"
+    "jsdom": "^29.0.1"
   }
 }

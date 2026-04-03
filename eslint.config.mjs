@@ -1,9 +1,9 @@
 export default [
   {
-    files: ["index.js"],
+    files: ["src/index.js"],
     languageOptions: {
       ecmaVersion: 2020,
-      sourceType: "script",
+      sourceType: "module",
       globals: {
         document: "readonly",
         window: "readonly",
@@ -29,10 +29,10 @@ export default [
     },
   },
   {
-    files: ["websocket.js"],
+    files: ["src/websocket.js"],
     languageOptions: {
       ecmaVersion: 2020,
-      sourceType: "script",
+      sourceType: "module",
       globals: {
         document: "readonly",
         window: "readonly",
@@ -46,7 +46,6 @@ export default [
         Set: "readonly",
         MutationObserver: "readonly",
         WebSocket: "readonly",
-        talkDOM: "readonly",
       },
     },
     rules: {
