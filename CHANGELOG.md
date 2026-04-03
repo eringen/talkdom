@@ -2,6 +2,22 @@
 
 All notable changes to talkDOM are documented in this file.
 
+## [0.4.0] - 2026-04-01
+
+### Added
+- WebSocket plugin (`websocket.js`) as an optional add-on for server-push via WebSocket
+- `ws:` terminal keyword on receivers to declare a WebSocket connection (`receiver="feed ws: ws://host/path"`)
+- Server-driven content updates via JSON messages (`{"receiver", "content", "op"}`)
+- Raw talkDOM message syntax support over WebSocket (same dispatch path as server triggers)
+- `ws:send:` method for sending element value/content over an existing WebSocket connection
+- Shared connections per URL — multiple receivers on the same URL share one WebSocket
+- Automatic reconnection with exponential backoff (1s–30s), jitter, and DOM-aware cleanup
+- Lifecycle events: `talkdom:ws:open`, `talkdom:ws:close`, `talkdom:ws:error`
+- Programmatic API: `talkDOM.ws.connect()`, `talkDOM.ws.disconnect()`, `talkDOM.ws.send()`
+- Configurable `talkDOM.ws.maxConnections` (default 16)
+- `MutationObserver` for dynamically added `ws:` receivers
+- Minified build: `dist/talkdom-ws.min.js`
+
 ## [0.3.1] - 2026-03-25
 
 ### Changed
