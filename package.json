@@ -1,6 +1,6 @@
 {
   "name": "talkdom",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Smalltalk-inspired message passing for the DOM",
   "type": "module",
   "main": "dist/talkdom.min.js",

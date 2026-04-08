@@ -46,6 +46,10 @@ args:     ["/partial", "inner"]
 - Programmatic API via `talkDOM.send` (returns a promise)
 - Extensible methods via `talkDOM.methods`
 - Configurable max pollers via `talkDOM.maxPollers`
+- `post-form:`, `put-form:`, `delete-form:` with form serialization
+- `post-json:`, `put-json:` with JSON body
+- `loading:` class toggle during async operations
+- Dynamic polling via `MutationObserver` for late-added elements
 
 ## Usage
 
@@ -104,7 +108,9 @@ Receivers poll by adding `poll:` as the last keyword with an interval (`s` or `m
 <div receiver="feed get:apply: /updates inner poll: 10s"></div>
 ```
 
-Polling stops automatically when the element is removed from the DOM. A maximum of 64 concurrent pollers is enforced by default. Adjust via:
+Polling stops automatically when the element is removed from the DOM. Elements added dynamically (e.g., via fragment injection or Alpine `x-if`) are picked up automatically by a `MutationObserver` — no manual setup needed.
+
+A maximum of 64 concurrent pollers is enforced by default. Adjust via:
 
 ```js
 talkDOM.maxPollers = 128;
@@ -206,6 +212,40 @@ await talkDOM.send("#a get:apply: /x inner ; #b get:apply: /y inner");
 talkDOM.send("#content get:apply: /bad-url inner").catch(function (err) {
   console.error("failed", err);
 });
+```
+
+## Form body
+
+`post-form:`, `put-form:`, and `delete-form:` serialize a form's inputs as `application/x-www-form-urlencoded` and send them with the request. The `form:` keyword specifies the CSS selector for the form element.
+
+```html
+<form id="my-form">
+  <input name="name" value="test">
+  <input name="email" value="user@example.com">
+</form>
+<div receiver="result"></div>
+<button sender="result post-form: /api/submit apply: inner form: #my-form">Submit</button>
+```
+
+## JSON body
+
+`post-json:` and `put-json:` send a JSON payload with the request. The `json:` keyword specifies the JSON string (parsed at runtime).
+
+```html
+<div receiver="result"></div>
+<button sender="result post-json: /api/data apply: inner json: {&quot;name&quot;:&quot;test&quot;}">Send</button>
+```
+
+## Loading state
+
+The `loading:` keyword toggles a CSS class on the receiver while an async operation is in progress. The class is removed on both success and error.
+
+```html
+<style>
+.is-loading { opacity: 0.5; pointer-events: none; }
+</style>
+<div receiver="content"></div>
+<button sender="content get: /api/data apply: inner loading: is-loading">Load</button>
 ```
 
 ## Extending

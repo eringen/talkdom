@@ -2,6 +2,19 @@
 
 All notable changes to talkDOM are documented in this file.
 
+## [0.4.1] - 2026-04-08
+
+### Added
+- `post-form:apply:form:`, `put-form:apply:form:`, `delete-form:apply:form:` methods for sending form data as `application/x-www-form-urlencoded`
+- `post-json:apply:json:`, `put-json:apply:json:` methods for sending JSON body payloads
+- `loading:` keyword to toggle a CSS class on the receiver during async operations
+- `MutationObserver` for dynamically added polling receivers (late-added `poll:` elements now start automatically)
+- `serializeForm()` helper using `URLSearchParams` and `FormData`
+- 15 new tests: form body (4), JSON body (2), loading state (2), dynamic polling (1), and related cases (69 -> 84 total)
+
+### Changed
+- `request()` now accepts an optional `body` parameter for form and JSON payloads
+
 ## [0.4.0] - 2026-04-01
 
 ### Added
