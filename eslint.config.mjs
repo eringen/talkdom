@@ -20,6 +20,9 @@ export default [
         Promise: "readonly",
         Headers: "readonly",
         MutationObserver: "readonly",
+        URLSearchParams: "readonly",
+        FormData: "readonly",
+        Node: "readonly",
       },
     },
     rules: {

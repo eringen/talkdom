@@ -738,6 +738,133 @@
     });
   });
 
+  // ── Form body support ──────────────────────────────────
+
+  suite("form body support");
+
+  test("post-form:form: serializes form data as urlencoded", function () {
+    fixture('<div receiver="fb1"></div><form id="fb1form"><input name="name" value="test"><input name="val" value="123"></form>');
+    var mock = mockFetch("ok");
+    talkDOM.send("fb1 post-form: /submit apply: inner form: #fb1form");
+    return tick(3).then(function () {
+      mock.restore();
+      var captured = mock.captured();
+      assertEqual(captured.opts.method, "POST", "method is POST");
+      assertEqual(captured.opts.body, "name=test&val=123", "form serialized");
+    });
+  });
+
+  test("put-form:form: serializes form data as urlencoded", function () {
+    fixture('<div receiver="fb2"></div><form id="fb2form"><input name="field" value="data"></form>');
+    var mock = mockFetch("ok");
+    talkDOM.send("fb2 put-form: /update apply: inner form: #fb2form");
+    return tick(3).then(function () {
+      mock.restore();
+      var captured = mock.captured();
+      assertEqual(captured.opts.method, "PUT", "method is PUT");
+      assertEqual(captured.opts.body, "field=data", "form serialized");
+    });
+  });
+
+  test("delete-form:form: serializes form data as urlencoded", function () {
+    fixture('<div receiver="fb3"></div><form id="fb3form"><input name="id" value="5"></form>');
+    var mock = mockFetch("ok");
+    talkDOM.send("fb3 delete-form: /remove apply: inner form: #fb3form");
+    return tick(3).then(function () {
+      mock.restore();
+      var captured = mock.captured();
+      assertEqual(captured.opts.method, "DELETE", "method is DELETE");
+      assertEqual(captured.opts.body, "id=5", "form serialized");
+    });
+  });
+
+  test("post-form:form: logs error when form not found", function () {
+    fixture('<div receiver="fb4"></div>');
+    var original = console.error;
+    var msg = "";
+    console.error = function (m) { msg = m; };
+    talkDOM.send("fb4 post-form: /submit apply: inner form: #nonexistent");
+    console.error = original;
+    return tick().then(function () {
+      assert(msg.indexOf("form not found") !== -1, "error for missing form");
+    });
+  });
+
+  // ── JSON body support ──────────────────────────────────
+
+  suite("JSON body support");
+
+  test("post-json:json: sends JSON body", function () {
+    fixture('<div receiver="js1"></div>');
+    var mock = mockFetch("ok");
+    talkDOM.send('js1 post-json: /api apply: inner json: {"key":"value"}');
+    return tick(3).then(function () {
+      mock.restore();
+      var captured = mock.captured();
+      assertEqual(captured.opts.method, "POST", "method is POST");
+      var body = JSON.parse(captured.opts.body);
+      assertEqual(body.key, "value", "JSON body parsed");
+    });
+  });
+
+  test("put-json:json: sends JSON body", function () {
+    fixture('<div receiver="js2"></div>');
+    var mock = mockFetch("ok");
+    talkDOM.send('js2 put-json: /api apply: inner json: {"id":42}');
+    return tick(3).then(function () {
+      mock.restore();
+      var captured = mock.captured();
+      assertEqual(captured.opts.method, "PUT", "method is PUT");
+      var body = JSON.parse(captured.opts.body);
+      assertEqual(body.id, 42, "JSON body parsed");
+    });
+  });
+
+  // ── Loading state class ────────────────────────────────
+
+  suite("loading state class");
+
+  test("loading: adds class before request and removes on success", function () {
+    fixture('<div receiver="ld1"></div>');
+    var mock = mockFetch("done");
+    var el = document.querySelector('[receiver="ld1"]');
+    talkDOM.send("ld1 get: /data apply: inner loading: is-loading");
+    assert(el.classList.contains("is-loading"), "class added immediately");
+    return tick(3).then(function () {
+      mock.restore();
+      assert(!el.classList.contains("is-loading"), "class removed after success");
+    });
+  });
+
+  test("loading: removes class on error", function () {
+    fixture('<div receiver="ld2"></div>');
+    var mock = mockFetch("", { status: 500 });
+    var el = document.querySelector('[receiver="ld2"]');
+    talkDOM.send("ld2 get: /fail apply: inner loading: busy");
+    return tick(3).then(function () {
+      mock.restore();
+      assert(!el.classList.contains("busy"), "class removed after error");
+    });
+  });
+
+  // ── Dynamic polling (MutationObserver) ───────────────
+
+  suite("dynamic polling (MutationObserver)");
+
+  test("MutationObserver starts polling for dynamically added receiver", function () {
+    fixture('<div id="dynpoll-host"></div>');
+    var callCount = 0;
+    talkDOM.methods["counting:apply:"] = function (el, val) { callCount++; el.textContent = val || callCount; return callCount; };
+    var host = document.getElementById("dynpoll-host");
+    var newEl = document.createElement("div");
+    newEl.setAttribute("receiver", "dynpoll1 counting:apply: text poll: 20ms");
+    host.appendChild(newEl);
+    return new Promise(function (resolve) { setTimeout(resolve, 100); }).then(function () {
+      assert(callCount >= 2, "dynamic poller started and ran (count: " + callCount + ")");
+      delete talkDOM.methods["counting:apply:"];
+    });
+  });
+
   // ── Runner ────────────────────────────────────────────
 
   async function runAll() {

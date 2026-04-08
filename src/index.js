@@ -124,7 +124,7 @@ function csrfToken() {
 
 // Perform a fetch with talkDOM headers. Returns a promise resolving to response text.
 // Fires server-triggered messages from X-TalkDOM-Trigger header if present.
-function request(method, url, receiver) {
+function request(method, url, receiver, body) {
   const headers = {
     "X-TalkDOM-Request": "true",
     "X-TalkDOM-Current-URL": location.href,
@@ -137,7 +137,7 @@ function request(method, url, receiver) {
     if (token) headers["X-CSRF-Token"] = token;
     else console.warn("talkDOM: no CSRF token found for " + method + " " + url);
   }
-  return fetch(url, { method, headers }).then((r) => {
+  return fetch(url, { method, headers, body }).then((r) => {
     if (!r.ok) {
       console.error("talkDOM: " + method + " " + url + " " + r.status);
       return Promise.reject(r.status);
@@ -148,6 +148,10 @@ function request(method, url, receiver) {
       return text;
     });
   });
+}
+
+function serializeForm(form) {
+  return new URLSearchParams(new FormData(form)).toString();
 }
 
 function recName(el) {
@@ -167,6 +171,34 @@ const methods = {
   "post:apply:": function (el, url, op) { return request("POST", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
   "put:apply:": function (el, url, op) { return request("PUT", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
   "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
+  "post-form:apply:form:": function (el, url, op, formSelector) {
+    const form = document.querySelector(formSelector);
+    if (!form) { console.error("post-form: form not found: " + formSelector); return; }
+    const body = serializeForm(form);
+    return request("POST", url, recName(el), body).then(function (t) { return apply(el, op, t); });
+  },
+  "put-form:apply:form:": function (el, url, op, formSelector) {
+    const form = document.querySelector(formSelector);
+    if (!form) { console.error("put-form: form not found: " + formSelector); return; }
+    const body = serializeForm(form);
+    return request("PUT", url, recName(el), body).then(function (t) { return apply(el, op, t); });
+  },
+  "delete-form:apply:form:": function (el, url, op, formSelector) {
+    const form = document.querySelector(formSelector);
+    if (!form) { console.error("delete-form: form not found: " + formSelector); return; }
+    const body = serializeForm(form);
+    return request("DELETE", url, recName(el), body).then(function (t) { return apply(el, op, t); });
+  },
+  "post-json:apply:json:": function (el, url, op, jsonStr) {
+    let data;
+    try { data = JSON.parse(jsonStr); } catch { data = {}; }
+    return request("POST", url, recName(el), JSON.stringify(data)).then(function (t) { return apply(el, op, t); });
+  },
+  "put-json:apply:json:": function (el, url, op, jsonStr) {
+    let data;
+    try { data = JSON.parse(jsonStr); } catch { data = {}; }
+    return request("PUT", url, recName(el), JSON.stringify(data)).then(function (t) { return apply(el, op, t); });
+  },
 };
 
 let pushing = false;
@@ -216,28 +248,42 @@ function send(msg, piped) {
     console.error(msg.receiver + " not found");
     return;
   }
-  const method = methods[msg.selector];
+  let loadingClass = null;
+  let keywords = msg.keywords;
+  let args = msg.args;
+  const loadingIdx = keywords.indexOf("loading:");
+  if (loadingIdx !== -1) {
+    loadingClass = args[loadingIdx];
+    keywords = keywords.filter(function (_, i) { return i !== loadingIdx; });
+    args = args.filter(function (_, i) { return i !== loadingIdx; });
+  }
+  const selector = keywords.join("");
+  const method = methods[selector];
   if (!method) {
-    console.error(msg.receiver + " does not understand " + msg.selector);
+    console.error(msg.receiver + " does not understand " + selector);
     return;
   }
-  const args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
+  const finalArgs = piped !== undefined ? [piped].concat(args) : args;
   let result;
   els.forEach(function (el) {
-    const detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
+    const detail = { receiver: msg.receiver, selector: selector, args: msg.args };
     const parent = el.parentNode;
     const next = el.nextElementSibling;
-    result = method(el, ...args);
+    if (loadingClass) el.classList.add(loadingClass);
+    result = method(el, ...finalArgs);
     if (result && typeof result.then === "function") {
       result.then(function () {
+        if (loadingClass) el.classList.remove(loadingClass);
         const target = resolveTarget(el, next, parent, msg.receiver);
         if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail }));
       }, function (err) {
+        if (loadingClass) el.classList.remove(loadingClass);
         detail.error = err;
         const target = resolveTarget(el, next, parent, msg.receiver);
         if (target) target.dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail }));
       });
     } else {
+      if (loadingClass) el.classList.remove(loadingClass);
       const target = resolveTarget(el, next, parent, msg.receiver);
       if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail }));
     }
@@ -338,6 +384,24 @@ document.addEventListener("click", function (e) {
 restore();
 replayState(history.state);
 document.querySelectorAll("[receiver]").forEach(startPolling);
+
+new MutationObserver(function (mutations) {
+  for (let i = 0; i < mutations.length; i++) {
+    const added = mutations[i].addedNodes;
+    for (let j = 0; j < added.length; j++) {
+      const node = added[j];
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.hasAttribute && node.hasAttribute("receiver")) {
+          startPolling(node);
+        }
+        const children = node.querySelectorAll ? node.querySelectorAll("[receiver]") : [];
+        for (let k = 0; k < children.length; k++) {
+          startPolling(children[k]);
+        }
+      }
+    }
+  };
+}).observe(document, { childList: true, subtree: true });
 
 const talkDOM = {
   methods,
