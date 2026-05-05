@@ -228,7 +228,7 @@
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
-    var result;
+    var results = [];
     els.forEach(function (el) {
       var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
       // Snapshot DOM neighbors before the method runs. If the method does an
@@ -236,7 +236,8 @@
       // to locate the replacement element for dispatching lifecycle events.
       var parent = el.parentNode;
       var next = el.nextElementSibling;
-      result = method(el, ...args);
+      var result = method(el, ...args);
+      results.push(result);
       if (result && typeof result.then === "function") {
         result.then(function () {
           var target = resolveTarget(el, next, parent, msg.receiver);
@@ -251,7 +252,7 @@
         if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
       }
     });
-    return result;
+    return Promise.all(results).then(function (values) { return values[values.length - 1]; });
   }
 
   // Programmatic API: parse and execute a raw message string (supports pipes and semicolons).
