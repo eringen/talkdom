@@ -31,3 +31,21 @@ test("pipes wait for the whole receiver group and keep the last receiver's value
   await result;
   assert.equal(piped, "last");
 });
+
+test("an earlier receiver failure rejects promptly and stops its pipe", async t => {
+  const { w } = setup(t, '<div receiver="a" id="first"></div><div receiver="a" id="last"></div>');
+  const pending = deferred();
+  const failure = new Error("first failed");
+  const events = [];
+  let piped = false;
+  w.document.addEventListener("talkdom:error", e => events.push([e.target.id, e.detail.error]));
+  w.document.addEventListener("talkdom:done", e => events.push([e.target.id, "done"]));
+  w.talkDOM.methods["work:"] = el => el.id === "first" ? Promise.reject(failure) : pending.promise;
+  w.talkDOM.methods["after:"] = () => { piped = true; };
+  await assert.rejects(w.talkDOM.send("a work: | a after:"), error => error === failure);
+  assert.equal(piped, false);
+  assert.deepEqual(events, [["first", failure]]);
+  pending.resolve("finished");
+  await flush();
+  assert.deepEqual(events, [["first", failure], ["last", "done"]]);
+});

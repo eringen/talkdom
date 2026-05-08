@@ -190,6 +190,8 @@ For `apply: outer`, the event fires on the replacement element (looked up by rec
 
 `talkDOM.send` accepts the same message syntax as the `sender` attribute and returns a promise.
 
+When several elements share a receiver name, successful delivery waits for all of them. A pipe receives the last matching element's value, in document order. Any receiver failure rejects the returned promise promptly and stops that pipe; work already started on other receivers continues and still emits its own lifecycle events.
+
 ```js
 // single operation
 talkDOM.send("#content get:apply: /api/data inner").then(function () {

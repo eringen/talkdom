@@ -237,20 +237,22 @@
       var parent = el.parentNode;
       var next = el.nextElementSibling;
       var result = method(el, ...args);
-      results.push(result);
       if (result && typeof result.then === "function") {
-        result.then(function () {
+        result = Promise.resolve(result).then(function (value) {
           var target = resolveTarget(el, next, parent, msg.receiver);
           if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
+          return value;
         }, function (err) {
           detail.error = err;
           var target = resolveTarget(el, next, parent, msg.receiver);
           if (target) target.dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail: detail }));
+          throw err;
         });
       } else {
         var target = resolveTarget(el, next, parent, msg.receiver);
         if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
       }
+      results.push(result);
     });
     return Promise.all(results).then(function (values) { return values[values.length - 1]; });
   }
