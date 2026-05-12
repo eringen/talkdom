@@ -5,6 +5,7 @@ All notable changes to talkDOM are documented in this file.
 ## Unreleased
 
 ### Fixed
+- Handle thrown custom-method errors without skipping other receivers or independent chains.
 - Wait for all matching receivers before continuing a pipe and propagate failures from every receiver.
 
 ## [0.4.0] - 2026-04-01

@@ -192,6 +192,8 @@ For `apply: outer`, the event fires on the replacement element (looked up by rec
 
 When several elements share a receiver name, successful delivery waits for all of them. A pipe receives the last matching element's value, in document order. Any receiver failure rejects the returned promise promptly and stops that pipe; work already started on other receivers continues and still emits its own lifecycle events.
 
+Custom methods may return a value, return a promise, or throw. Thrown errors reject delivery and emit `talkdom:error` just like rejected promises. Synchronous methods still update the DOM immediately when sent directly.
+
 ```js
 // single operation
 talkDOM.send("#content get:apply: /api/data inner").then(function () {

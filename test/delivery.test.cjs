@@ -32,6 +32,24 @@ test("pipes wait for the whole receiver group and keep the last receiver's value
   assert.equal(piped, "last");
 });
 
+test("throwing methods reject without skipping other receivers or chains", async t => {
+  const { w } = setup(t, '<div receiver="a" id="first"></div><div receiver="a" id="last"></div>');
+  const failure = new Error("boom");
+  const visited = [], errors = [];
+  w.document.addEventListener("talkdom:error", e => errors.push(e.detail.error));
+  w.talkDOM.methods["work:"] = el => {
+    visited.push(el.id);
+    if (el.id === "first") throw failure;
+    el.textContent = "sync";
+  };
+  w.talkDOM.methods["other:"] = el => visited.push("other:" + el.id);
+  const result = w.talkDOM.send("a work: ; a other:");
+  assert.equal(w.document.getElementById("last").textContent, "sync");
+  await assert.rejects(result, error => error === failure);
+  assert.deepEqual(visited, ["first", "last", "other:first", "other:last"]);
+  assert.deepEqual(errors, [failure]);
+});
+
 test("an earlier receiver failure rejects promptly and stops its pipe", async t => {
   const { w } = setup(t, '<div receiver="a" id="first"></div><div receiver="a" id="last"></div>');
   const pending = deferred();

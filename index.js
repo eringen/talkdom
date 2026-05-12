@@ -236,7 +236,9 @@
       // to locate the replacement element for dispatching lifecycle events.
       var parent = el.parentNode;
       var next = el.nextElementSibling;
-      var result = method(el, ...args);
+      var result;
+      try { result = method(el, ...args); }
+      catch (err) { result = Promise.reject(err); }
       if (result && typeof result.then === "function") {
         result = Promise.resolve(result).then(function (value) {
           var target = resolveTarget(el, next, parent, msg.receiver);
