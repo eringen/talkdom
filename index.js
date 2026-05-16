@@ -259,13 +259,20 @@
     return Promise.all(results).then(function (values) { return values[values.length - 1]; });
   }
 
+  function execute(raw, piped) {
+    try { return Promise.resolve(send(parseMessage(raw), piped)); }
+    catch (err) { return Promise.reject(err); }
+  }
+
   // Programmatic API: parse and execute a raw message string (supports pipes and semicolons).
   // Returns a promise that resolves when all chains complete.
   function run(raw) {
-    var trimmed = raw.trim();
+    var trimmed;
+    try { trimmed = raw.trim(); }
+    catch (err) { return Promise.reject(err); }
     // Fast path: no pipes or semicolons (most common case).
     if (trimmed.indexOf(";") === -1 && trimmed.indexOf("|") === -1) {
-      return Promise.resolve(send(parseMessage(trimmed))).then(function (r) { return [r]; });
+      return execute(trimmed).then(function (r) { return [r]; });
     }
     // Semicolons split into independent chains that run in parallel.
     var chains = trimmed.split(";").map(function (chain) {
@@ -275,14 +282,13 @@
       // value is fed as the first argument to the next step.
       var steps = step.split("|").map(function (s) { return s.trim(); }).filter(Boolean);
       if (steps.length === 1) {
-        return Promise.resolve(send(parseMessage(steps[0])));
+        return execute(steps[0]);
       }
       // Reduce builds a promise chain: each step waits for the previous one,
       // then passes its resolved value (piped) into send().
       return steps.reduce(function (prev, step) {
-        var msg = parseMessage(step);
         return Promise.resolve(prev).then(function (piped) {
-          return send(msg, piped);
+          return execute(step, piped);
         });
       }, undefined);
     });

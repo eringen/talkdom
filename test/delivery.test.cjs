@@ -1,6 +1,27 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { setup, deferred, flush } = require("./helpers.cjs");
+const { setup, deferred, flush, response } = require("./helpers.cjs");
+
+test("invalid input returns a rejection instead of throwing", async t => {
+  const { w } = setup(t);
+  await assert.rejects(w.talkDOM.send(null), { name: "TypeError" });
+  w.talkDOM.methods["other:"] = el => { el.textContent = "ran"; };
+  await assert.rejects(w.talkDOM.send('a" other: ; a other:'));
+  assert.equal(w.document.querySelector("[receiver]").textContent, "ran");
+});
+
+test("click and server-trigger failures are caught by declarative dispatch", async t => {
+  const { w, warnings } = setup(t, '<button receiver="a" sender="a boom:"></button>');
+  const failure = new Error("boom");
+  w.talkDOM.methods["boom:"] = () => { throw failure; };
+  w.document.querySelector("button").click();
+  await flush();
+  assert.equal(warnings[0][1], failure);
+  w.fetch = () => Promise.resolve(response("ok", "a boom:"));
+  await w.talkDOM.send("a get: /data");
+  await flush();
+  assert.equal(warnings[1][1], failure);
+});
 
 for (const firstToFinish of [0, 1]) {
   test(`delivery waits for both receivers when receiver ${firstToFinish} finishes first`, async t => {

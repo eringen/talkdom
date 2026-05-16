@@ -5,6 +5,7 @@ All notable changes to talkDOM are documented in this file.
 ## Unreleased
 
 ### Fixed
+- Return promise rejections for invalid input and isolate command startup failures.
 - Handle thrown custom-method errors without skipping other receivers or independent chains.
 - Wait for all matching receivers before continuing a pipe and propagate failures from every receiver.
 

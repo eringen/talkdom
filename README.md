@@ -194,6 +194,8 @@ When several elements share a receiver name, successful delivery waits for all o
 
 Custom methods may return a value, return a promise, or throw. Thrown errors reject delivery and emit `talkdom:error` just like rejected promises. Synchronous methods still update the DOM immediately when sent directly.
 
+Invalid input also returns a rejected promise. Independent semicolon chains still start if another chain fails. Declarative senders and server triggers catch rejections and log them; programmatic callers should await or catch the returned promise.
+
 ```js
 // single operation
 talkDOM.send("#content get:apply: /api/data inner").then(function () {
