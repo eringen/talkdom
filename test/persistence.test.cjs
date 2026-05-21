@@ -1,0 +1,31 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { setup } = require("./helpers.cjs");
+
+for (const bad of ["{", "null", "[]", "0", '"text"', "{}", '{"op":"bogus","content":"bad"}', '{"op":"text","content":2}', ""]) {
+  test(`invalid storage ${JSON.stringify(bad)} does not stop restoration`, t => {
+    const { w } = setup(t, '<div receiver="bad" persist>old</div><div receiver="good" persist></div>', w => {
+      w.localStorage.setItem("talkDOM:bad", bad);
+      w.localStorage.setItem("talkDOM:good", JSON.stringify({op:"inner", content:"saved"}));
+    });
+    assert.equal(typeof w.talkDOM.send, "function");
+    assert.equal(w.document.querySelector('[receiver="bad"]').textContent, "old");
+    assert.equal(w.document.querySelector('[receiver="good"]').textContent, "saved");
+    assert.equal(w.localStorage.getItem("talkDOM:bad"), null);
+  });
+}
+
+test("denied storage and failed removal do not abort initialization", t => {
+  for (const mode of ["getter", "getItem", "removeItem"]) {
+    const { w, warnings } = setup(t, '<div receiver="a" persist>old</div>', w => {
+      if (mode === "getter") Object.defineProperty(w, "localStorage", {get() {throw new Error("denied");}});
+      else Object.defineProperty(w, "localStorage", {value:{
+        getItem() { if (mode === "getItem") throw new Error("denied"); return "null"; },
+        removeItem() { throw new Error("denied"); },
+      }});
+    });
+    assert.equal(typeof w.talkDOM.send, "function");
+    assert.equal(w.document.body.textContent, "old");
+    assert.equal(warnings.length, 1);
+  }
+});

@@ -78,19 +78,32 @@
     }
   }
 
+  function storage(action, key, value) {
+    try { return localStorage[action](key, value); }
+    catch (err) { console.warn("talkDOM: storage " + action + " failed for " + key, err); }
+  }
+
   // On page load, restore persisted receiver content from localStorage.
   function restore() {
     document.querySelectorAll("[persist]").forEach(function (el) {
       if (!el.hasAttribute("receiver")) return;
       var name = receiverName(el);
-      var raw = localStorage.getItem("talkDOM:" + name);
-      if (!raw) return;
+      var key = "talkDOM:" + name;
+      var raw = storage("getItem", key);
+      if (raw == null) return;
       var state;
-      try { state = JSON.parse(raw); } catch (e) { void e; localStorage.removeItem("talkDOM:" + name); return; }
-      if (state.op === "outer") {
-        el.outerHTML = state.content;
-      } else {
-        el.innerHTML = state.content;
+      try {
+        state = JSON.parse(raw);
+        if (!state || typeof state !== "object" || Array.isArray(state) ||
+            ["inner", "text", "append", "outer"].indexOf(state.op) === -1 || typeof state.content !== "string") {
+          storage("removeItem", key);
+          return;
+        }
+        if (state.op === "outer") el.outerHTML = state.content;
+        else el.innerHTML = state.content;
+      } catch (err) {
+        console.warn("talkDOM: cannot restore " + key, err);
+        storage("removeItem", key);
       }
     });
   }

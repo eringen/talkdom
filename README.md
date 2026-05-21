@@ -114,6 +114,8 @@ talkDOM.maxPollers = 128;
 
 Receivers with `persist` save their content to `localStorage` after each apply and restore it on page load.
 
+Invalid saved entries are discarded individually. Unavailable storage produces a warning and does not prevent the library or other receivers from initializing.
+
 ```html
 <div receiver="sidebar" persist></div>
 ```
