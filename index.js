@@ -72,9 +72,9 @@
     var name = receiverName(el);
     var key = "talkDOM:" + name;
     if (op === "outer") {
-      localStorage.setItem(key, JSON.stringify({ op: op, content: el.outerHTML }));
+      storage("setItem", key, JSON.stringify({ op: op, content: el.outerHTML }));
     } else {
-      localStorage.setItem(key, JSON.stringify({ op: op, content: el.innerHTML }));
+      storage("setItem", key, JSON.stringify({ op: op, content: el.innerHTML }));
     }
   }
 
@@ -90,7 +90,7 @@
       var name = receiverName(el);
       var key = "talkDOM:" + name;
       var raw = storage("getItem", key);
-      if (raw == null) return;
+      if (raw === null || raw === undefined) return;
       var state;
       try {
         state = JSON.parse(raw);

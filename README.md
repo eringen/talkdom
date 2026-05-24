@@ -116,6 +116,8 @@ Receivers with `persist` save their content to `localStorage` after each apply a
 
 Invalid saved entries are discarded individually. Unavailable storage produces a warning and does not prevent the library or other receivers from initializing.
 
+Persistence is best effort: a quota or storage write failure warns without undoing a successful DOM update, rejecting its promise, or replacing its `talkdom:done` event with an error.
+
 ```html
 <div receiver="sidebar" persist></div>
 ```

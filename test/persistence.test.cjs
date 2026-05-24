@@ -2,6 +2,23 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { setup } = require("./helpers.cjs");
 
+test("quota failures preserve successful DOM updates and lifecycle events", async t => {
+  const { w, warnings } = setup(t, '<div receiver="a" persist></div>', w => {
+    Object.defineProperty(w, "localStorage", {value:{
+      getItem() { return null; },
+      setItem() { throw new Error("quota exceeded"); },
+    }});
+  });
+  const events = [];
+  w.document.addEventListener("talkdom:done", e => events.push(e.detail.selector));
+  w.document.addEventListener("talkdom:error", () => assert.fail("DOM update should succeed"));
+  w.talkDOM.methods["echo:"] = (el, value) => value;
+  await w.talkDOM.send("a echo: saved | a apply: text");
+  assert.equal(w.document.body.textContent, "saved");
+  assert.deepEqual(events, ["echo:", "apply:"]);
+  assert.equal(warnings.length, 1);
+});
+
 for (const bad of ["{", "null", "[]", "0", '"text"', "{}", '{"op":"bogus","content":"bad"}', '{"op":"text","content":2}', ""]) {
   test(`invalid storage ${JSON.stringify(bad)} does not stop restoration`, t => {
     const { w } = setup(t, '<div receiver="bad" persist>old</div><div receiver="good" persist></div>', w => {
