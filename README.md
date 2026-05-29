@@ -152,14 +152,14 @@ For CORS, expose the header: `Access-Control-Expose-Headers: X-TalkDOM-Trigger`.
 
 ## Request headers
 
-Every fetch sends:
+Fetches send the following headers. Sensitive headers are limited to same-origin destinations by default; relative URLs are resolved against the document's base URL.
 
 | Header | Value |
 |---|---|
 | `X-TalkDOM-Request` | `"true"` |
-| `X-TalkDOM-Current-URL` | `location.href` |
+| `X-TalkDOM-Current-URL` | `location.href`, same-origin only by default |
 | `X-TalkDOM-Receiver` | receiver name (if element has one) |
-| `X-CSRF-Token` | from `<meta name="csrf-token">` (non-GET only) |
+| `X-CSRF-Token` | from `<meta name="csrf-token">` (non-GET, same-origin only by default) |
 
 ## Self-replacing elements
 

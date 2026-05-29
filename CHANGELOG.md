@@ -5,6 +5,7 @@ All notable changes to talkDOM are documented in this file.
 ## Unreleased
 
 ### Fixed
+- Limit automatic CSRF tokens and current-page headers to same-origin destinations.
 - Keep successful DOM updates working when persistence writes fail.
 - Recover from unavailable storage and invalid saved state during startup.
 - Return promise rejections for invalid input and isolate command startup failures.

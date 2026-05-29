@@ -137,14 +137,15 @@
   // Perform a fetch with talkDOM headers. Returns a promise resolving to response text.
   // Fires server-triggered messages from X-TalkDOM-Trigger header if present.
   function request(method, url, receiver) {
+    var sameOrigin = new URL(url, document.baseURI).origin === location.origin;
     var headers = {
       "X-TalkDOM-Request": "true",
-      "X-TalkDOM-Current-URL": location.href,
     };
+    if (sameOrigin) headers["X-TalkDOM-Current-URL"] = location.href;
     if (receiver) {
       headers["X-TalkDOM-Receiver"] = receiver;
     }
-    if (method !== "GET") {
+    if (method !== "GET" && sameOrigin) {
       var token = csrfToken();
       if (token) headers["X-CSRF-Token"] = token;
       else console.warn("talkDOM: no CSRF token found for " + method + " " + url);
