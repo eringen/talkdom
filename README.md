@@ -161,6 +161,21 @@ Fetches send the following headers. Sensitive headers are limited to same-origin
 | `X-TalkDOM-Receiver` | receiver name (if element has one) |
 | `X-CSRF-Token` | from `<meta name="csrf-token">` (non-GET, same-origin only by default) |
 
+For an existing cross-origin integration that needs these headers, explicitly trust its exact origin (scheme, host, and port). Set startup configuration before loading core, or change `talkDOM.config` afterward:
+
+```html
+<script>
+  window.talkDOMConfig = {
+    trustedOrigins: ["https://api.example.com"],
+    includeCurrentURL: true,
+    allowServerTriggers: true
+  };
+</script>
+<script src="index.js"></script>
+```
+
+There are no wildcard origins. Set `includeCurrentURL: false` to omit the full page URL, including its query and fragment, even for trusted requests. Server-trigger commands remain enabled for readable responses, including cross-origin responses, to preserve existing integrations; treat these servers as trusted command sources or set `allowServerTriggers: false`.
+
 ## Self-replacing elements
 
 ```html

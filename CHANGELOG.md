@@ -4,6 +4,9 @@ All notable changes to talkDOM are documented in this file.
 
 ## Unreleased
 
+### Added
+- Explicit trusted origins and controls for current-page headers and server commands.
+
 ### Fixed
 - Limit automatic CSRF tokens and current-page headers to same-origin destinations.
 - Keep successful DOM updates working when persistence writes fail.

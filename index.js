@@ -1,6 +1,7 @@
 (function () {
 
   var WS = /\s+/;
+  var config = Object.assign({ trustedOrigins: [], includeCurrentURL: true, allowServerTriggers: true }, window.talkDOMConfig);
 
   // Parse "receiver keyword: arg keyword: arg" into structured message object.
   // Tokens ending with ":" are keywords, everything else fills args.
@@ -137,15 +138,16 @@
   // Perform a fetch with talkDOM headers. Returns a promise resolving to response text.
   // Fires server-triggered messages from X-TalkDOM-Trigger header if present.
   function request(method, url, receiver) {
-    var sameOrigin = new URL(url, document.baseURI).origin === location.origin;
+    var origin = new URL(url, document.baseURI).origin;
+    var trusted = origin === location.origin || config.trustedOrigins.indexOf(origin) !== -1;
     var headers = {
       "X-TalkDOM-Request": "true",
     };
-    if (sameOrigin) headers["X-TalkDOM-Current-URL"] = location.href;
+    if (trusted && config.includeCurrentURL) headers["X-TalkDOM-Current-URL"] = location.href;
     if (receiver) {
       headers["X-TalkDOM-Receiver"] = receiver;
     }
-    if (method !== "GET" && sameOrigin) {
+    if (method !== "GET" && trusted) {
       var token = csrfToken();
       if (token) headers["X-CSRF-Token"] = token;
       else console.warn("talkDOM: no CSRF token found for " + method + " " + url);
@@ -157,7 +159,7 @@
       }
       var trigger = r.headers.get("X-TalkDOM-Trigger");
       return r.text().then(function (text) {
-        if (trigger) dispatchRaw(trigger);
+        if (trigger && config.allowServerTriggers) dispatchRaw(trigger);
         return text;
       });
     }, function (err) {
@@ -382,6 +384,7 @@
   document.querySelectorAll("[receiver]").forEach(startPolling);
 
   window.talkDOM = {
+    config: config,
     methods: methods,
     send: run,
     get maxPollers() { return maxPollers; },
