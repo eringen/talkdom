@@ -8,6 +8,7 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Keep manually opened WebSockets alive when no DOM receivers remain.
 - Limit automatic CSRF tokens and current-page headers to same-origin destinations.
 - Keep successful DOM updates working when persistence writes fail.
 - Recover from unavailable storage and invalid saved state during startup.

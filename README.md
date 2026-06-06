@@ -342,6 +342,8 @@ talkDOM.ws.maxConnections = 32;
 
 `talkDOM.ws.send` returns `true` if sent, `false` if the connection is not open.
 
+`connect()` keeps a connection open even without DOM receivers. Calling it on a shared declarative connection also gives it manual ownership, so removing the final DOM receiver will not close it. Repeated calls are idempotent. `disconnect()` explicitly closes the whole connection, including any shared subscribers, preserving its existing behavior.
+
 ## Security
 
 talkDOM does **not** sanitize HTML. Content from `get:apply:`, `post:apply:`, server triggers, and piped `apply:` is inserted via `innerHTML` / `insertAdjacentHTML` / `outerHTML` as-is. You are responsible for ensuring that server responses do not contain untrusted markup.

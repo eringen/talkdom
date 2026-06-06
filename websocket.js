@@ -145,11 +145,11 @@
         console.warn("talkdom-ws: max connections (" + maxConnections + ") reached, ignoring " + url);
         return;
       }
-      conn = { ws: null, receivers: new Set(), backoff: BASE_DELAY, timer: null, checkTimer: null };
+      conn = { ws: null, receivers: new Set(), manual: false, backoff: BASE_DELAY, timer: null, checkTimer: null };
       connections[url] = conn;
       // Periodic cleanup check for this connection.
       conn.checkTimer = setInterval(function () {
-        if (!pruneReceivers(conn)) cleanup(url);
+        if (!pruneReceivers(conn) && !conn.manual) cleanup(url);
       }, CLEANUP_INTERVAL);
     }
     conn.receivers.add(el);
@@ -206,11 +206,12 @@
           console.warn("talkdom-ws: max connections (" + maxConnections + ") reached");
           return;
         }
-        connections[url] = { ws: null, receivers: new Set(), backoff: BASE_DELAY, timer: null, checkTimer: null };
+        connections[url] = { ws: null, receivers: new Set(), manual: true, backoff: BASE_DELAY, timer: null, checkTimer: null };
         connections[url].checkTimer = setInterval(function () {
-          if (!pruneReceivers(connections[url])) cleanup(url);
+          if (!pruneReceivers(connections[url]) && !connections[url].manual) cleanup(url);
         }, CLEANUP_INTERVAL);
       }
+      connections[url].manual = true;
       connectWs(url);
     },
     disconnect: function (url) { cleanup(url); },
