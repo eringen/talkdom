@@ -86,10 +86,14 @@
   function scheduleReconnect(url) {
     var conn = connections[url];
     if (!conn) return;
-    if (!pruneReceivers(conn)) { cleanup(url); return; }
+    if (!pruneReceivers(conn) && !conn.manual) { cleanup(url); return; }
+    if (conn.timer) clearTimeout(conn.timer);
     var delay = Math.min(conn.backoff, MAX_DELAY);
     delay = delay * (0.75 + Math.random() * 0.5);
     conn.timer = setTimeout(function () {
+      conn.timer = null;
+      if (connections[url] !== conn) return;
+      if (!pruneReceivers(conn) && !conn.manual) { cleanup(url); return; }
       conn.backoff = Math.min(conn.backoff * 2, MAX_DELAY);
       connectWs(url);
     }, delay);
@@ -101,7 +105,7 @@
     if (conn.timer) clearTimeout(conn.timer);
     if (conn.checkTimer) clearInterval(conn.checkTimer);
     if (conn.ws) {
-      conn.ws.onclose = null; // prevent reconnect on intentional close
+      conn.ws.onopen = conn.ws.onmessage = conn.ws.onerror = conn.ws.onclose = null;
       conn.ws.close();
     }
     delete connections[url];
@@ -112,24 +116,29 @@
     if (!conn) return;
     // Already open or connecting — skip.
     if (conn.ws && (conn.ws.readyState === WebSocket.OPEN || conn.ws.readyState === WebSocket.CONNECTING)) return;
+    if (conn.timer) { clearTimeout(conn.timer); conn.timer = null; }
 
     var ws = new WebSocket(url);
 
     ws.onopen = function () {
+      if (connections[url] !== conn || conn.ws !== ws) return;
       conn.backoff = BASE_DELAY;
       fireEvent(conn, "talkdom:ws:open", { url: url });
     };
 
     ws.onmessage = function (e) {
+      if (connections[url] !== conn || conn.ws !== ws) return;
       onMessage(url, e);
     };
 
     ws.onclose = function (e) {
+      if (connections[url] !== conn || conn.ws !== ws) return;
       fireEvent(conn, "talkdom:ws:close", { url: url, code: e.code, reason: e.reason });
       scheduleReconnect(url);
     };
 
     ws.onerror = function () {
+      if (connections[url] !== conn || conn.ws !== ws) return;
       fireEvent(conn, "talkdom:ws:error", { url: url });
     };
 

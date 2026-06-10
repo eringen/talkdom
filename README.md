@@ -344,6 +344,8 @@ talkDOM.ws.maxConnections = 32;
 
 `connect()` keeps a connection open even without DOM receivers. Calling it on a shared declarative connection also gives it manual ownership, so removing the final DOM receiver will not close it. Repeated calls are idempotent. `disconnect()` explicitly closes the whole connection, including any shared subscribers, preserving its existing behavior.
 
+Manual connections use the same reconnect backoff as declarative ones. Explicit disconnect cancels pending retries; callbacks from an old socket cannot reconnect or deliver messages to a replacement connection.
+
 ## Security
 
 talkDOM does **not** sanitize HTML. Content from `get:apply:`, `post:apply:`, server triggers, and piped `apply:` is inserted via `innerHTML` / `insertAdjacentHTML` / `outerHTML` as-is. You are responsible for ensuring that server responses do not contain untrusted markup.
