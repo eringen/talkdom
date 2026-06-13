@@ -33,6 +33,7 @@ args:     ["/partial", "inner"]
 - `get:`, `post:`, `put:`, `delete:` selectors (return response for piping)
 - `get:apply:`, `post:apply:`, `put:apply:`, `delete:apply:` shorthand selectors
 - `apply:` consumes piped content
+- `text:` applies a literal argument as text
 - Apply operations: `inner`, `text`, `append`, `outer`
 - Pipes (`|`) chain return values between messages
 - Independent messages (`;`) fire separately
@@ -78,6 +79,8 @@ Multiple elements can share the same receiver name. All matching elements receiv
 
 ## Pipes
 
+Combined selectors such as `get:apply:` are method-table names. In messages, interleave keywords and arguments: `content get: /partial apply: inner`. Receiver names are literal names, so `content` addresses `receiver="content"`; a leading `#` is not an ID selector.
+
 `|` chains the return value of one message into the next as the first argument.
 
 ```html
@@ -101,7 +104,7 @@ Receivers declare what operations they allow.
 Receivers poll by adding `poll:` as the last keyword with an interval (`s` or `ms`) as its argument. The method keywords before `poll:` run on each tick.
 
 ```html
-<div receiver="feed get:apply: /updates inner poll: 10s"></div>
+<div receiver="feed get: /updates apply: inner poll: 10s"></div>
 ```
 
 Polling stops automatically when the element is removed from the DOM. A maximum of 64 concurrent pollers is enforced by default. Adjust via:
@@ -137,13 +140,13 @@ If `push-url` has no value, the first message's first arg is used as the URL.
 The server can trigger client-side messages by setting the `X-TalkDOM-Trigger` response header. The value uses the same message syntax.
 
 ```
-X-TalkDOM-Trigger: toast apply: Saved inner
+X-TalkDOM-Trigger: toast text: Saved
 ```
 
 Multiple triggers separated by `;`:
 
 ```
-X-TalkDOM-Trigger: toast apply: Saved inner; counter get: /count apply: text
+X-TalkDOM-Trigger: toast text: Saved; counter get: /count apply: text
 ```
 
 Works with pipes, extended methods, and everything else — it dispatches through the same path as sender clicks.
@@ -217,18 +220,18 @@ Invalid input also returns a rejected promise. Independent semicolon chains stil
 
 ```js
 // single operation
-talkDOM.send("#content get:apply: /api/data inner").then(function () {
+talkDOM.send("content get: /api/data apply: inner").then(function () {
   console.log("done");
 });
 
 // pipes
-await talkDOM.send("#content get: /api/data | #output apply: inner");
+await talkDOM.send("content get: /api/data | output apply: inner");
 
 // parallel chains
-await talkDOM.send("#a get:apply: /x inner ; #b get:apply: /y inner");
+await talkDOM.send("a get: /x apply: inner ; b get: /y apply: inner");
 
 // errors propagate
-talkDOM.send("#content get:apply: /bad-url inner").catch(function (err) {
+talkDOM.send("content get: /bad-url apply: inner").catch(function (err) {
   console.error("failed", err);
 });
 ```
@@ -273,7 +276,7 @@ The server sends JSON messages to control what gets applied:
 
 | Field | Required | Description |
 |---|---|---|
-| `receiver` | yes | Target receiver name |
+| `receiver` | no | Target receiver name |
 | `content` | no | HTML or text content |
 | `op` | no | `inner` (default), `text`, `append`, `outer` |
 
@@ -282,17 +285,19 @@ Omitting `receiver` broadcasts to all receivers on that connection.
 The server can also send raw talkDOM message syntax instead of JSON:
 
 ```
-feed apply: Updated! text
+feed text: Updated!
 ```
 
 This dispatches through the same path as sender clicks and server triggers.
 
 ### Sending
 
+The socket must be open before sending. The `ws:` receiver declaration below establishes it; enable the Send button after `talkdom:ws:open` in a production form.
+
 The plugin registers a `ws:send:` method. The receiver element's value (for inputs/textareas/selects) or text content is sent over the WebSocket connection.
 
 ```html
-<input receiver="chatbox" type="text">
+<input receiver="chatbox ws: ws://localhost:3000/chat" type="text">
 <button sender="chatbox ws:send: ws://localhost:3000/chat">Send</button>
 ```
 

@@ -5,9 +5,11 @@ All notable changes to talkDOM are documented in this file.
 ## Unreleased
 
 ### Added
+- A `text:` message for literal text updates without a pipe.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Correct HTTP, polling, raw-message, and WebSocket setup examples.
 - Reconnect manually owned sockets and cancel stale retries on disconnect.
 - Keep manually opened WebSockets alive when no DOM receivers remain.
 - Limit automatic CSRF tokens and current-page headers to same-origin destinations.
