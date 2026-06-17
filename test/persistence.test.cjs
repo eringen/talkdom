@@ -2,6 +2,17 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { setup } = require("./helpers.cjs");
 
+test("outer persistence restores the replacement using the original key", async t => {
+  const { w } = setup(t, '<div receiver="a" persist>old</div>');
+  const replacement = '<p receiver="renamed">new</p><span>extra</span>';
+  w.talkDOM.methods["value:"] = () => replacement;
+  await w.talkDOM.send("a value: | a apply: outer");
+  const stored = w.localStorage.getItem("talkDOM:a");
+  assert.equal(JSON.parse(stored).content, replacement);
+  const restored = setup(t, '<div receiver="a" persist>old</div>', w => w.localStorage.setItem("talkDOM:a", stored));
+  assert.equal(restored.w.document.body.innerHTML, replacement);
+});
+
 test("quota failures preserve successful DOM updates and lifecycle events", async t => {
   const { w, warnings } = setup(t, '<div receiver="a" persist></div>', w => {
     Object.defineProperty(w, "localStorage", {value:{

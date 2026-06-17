@@ -68,12 +68,12 @@
   }
 
   // Save receiver content to localStorage after apply, keyed by receiver name.
-  function persist(el, op) {
+  function persist(el, op, content) {
     if (!el.hasAttribute("receiver") || !el.hasAttribute("persist")) return;
     var name = receiverName(el);
     var key = "talkDOM:" + name;
     if (op === "outer") {
-      storage("setItem", key, JSON.stringify({ op: op, content: el.outerHTML }));
+      storage("setItem", key, JSON.stringify({ op: op, content: String(content) }));
     } else {
       storage("setItem", key, JSON.stringify({ op: op, content: el.innerHTML }));
     }
@@ -121,7 +121,7 @@
       case "append": el.insertAdjacentHTML("beforeend", content); break;
       case "outer": el.outerHTML = content; break;
     }
-    persist(el, op);
+    persist(el, op, content);
     return content;
   }
 

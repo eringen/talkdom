@@ -121,6 +121,8 @@ Invalid saved entries are discarded individually. Unavailable storage produces a
 
 Persistence is best effort: a quota or storage write failure warns without undoing a successful DOM update, rejecting its promise, or replacing its `talkdom:done` event with an error.
 
+An outer swap saves the replacement markup under the original receiver's key, including multiple roots or a changed receiver name. Keep `receiver` and `persist` on the replacement if later updates should also be saved.
+
 ```html
 <div receiver="sidebar" persist></div>
 ```
