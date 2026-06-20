@@ -378,6 +378,8 @@ IE is not supported.
 
 Receiver lookups are cached and invalidated automatically via `MutationObserver`. Repeated dispatches to the same receiver name within a stable DOM hit the cache.
 
+Pending mutations are checked before lookup, so a synchronous insertion, replacement, or receiver rename is visible to the very next send without waiting for an observer callback.
+
 Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM.maxPollers`). Pollers clean up automatically when their element is removed from the DOM. Method lookups are cached at poll setup time.
 
 The CSRF meta tag element is cached after the first lookup and only re-queried if removed from the DOM.

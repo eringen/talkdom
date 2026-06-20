@@ -47,11 +47,12 @@
   var receiverCache = Object.create(null);
   var cacheValid = false;
 
-  new MutationObserver(function () { cacheValid = false; })
-    .observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["receiver"] });
+  var receiverObserver = new MutationObserver(function () { cacheValid = false; });
+  receiverObserver.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["receiver"] });
 
   // Find all elements whose receiver attribute contains the given name.
   function findReceivers(name) {
+    if (receiverObserver.takeRecords().length) cacheValid = false;
     if (!cacheValid) { receiverCache = Object.create(null); cacheValid = true; }
     if (receiverCache[name]) return receiverCache[name];
     var result = document.querySelectorAll('[receiver~="' + name + '"]');
