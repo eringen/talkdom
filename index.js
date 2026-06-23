@@ -38,26 +38,33 @@
 
   // Extract the first word from the receiver attribute (the name).
   function receiverName(el) {
-    var attr = el.getAttribute("receiver").trim();
-    var sp = attr.indexOf(" ");
-    return sp === -1 ? attr : attr.substring(0, sp);
+    return (el.getAttribute("receiver") || "").trim().split(WS)[0];
   }
 
-  // Receiver cache: maps name -> NodeList, invalidated by DOM mutations.
+  // Receiver cache: names before the first keyword are aliases, never arguments.
   var receiverCache = Object.create(null);
   var cacheValid = false;
 
   var receiverObserver = new MutationObserver(function () { cacheValid = false; });
   receiverObserver.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["receiver"] });
 
-  // Find all elements whose receiver attribute contains the given name.
+  // Index literal names without interpolating user input into CSS selectors.
   function findReceivers(name) {
     if (receiverObserver.takeRecords().length) cacheValid = false;
-    if (!cacheValid) { receiverCache = Object.create(null); cacheValid = true; }
-    if (receiverCache[name]) return receiverCache[name];
-    var result = document.querySelectorAll('[receiver~="' + name + '"]');
-    receiverCache[name] = result;
-    return result;
+    if (!cacheValid) {
+      receiverCache = Object.create(null);
+      document.querySelectorAll("[receiver]").forEach(function (el) {
+        var tokens = el.getAttribute("receiver").trim().split(WS);
+        for (var i = 0; i < tokens.length && !tokens[i].endsWith(":"); i++) {
+          var key = tokens[i];
+          if (!key) continue;
+          var matches = receiverCache[key] || (receiverCache[key] = []);
+          if (matches.indexOf(el) === -1) matches.push(el);
+        }
+      });
+      cacheValid = true;
+    }
+    return receiverCache[name] || [];
   }
 
   // Check if a receiver allows a given apply operation (inner, text, append, outer).
@@ -389,6 +396,7 @@
     config: config,
     methods: methods,
     send: run,
+    receivers: function (name) { return findReceivers(name).slice(); },
     get maxPollers() { return maxPollers; },
     set maxPollers(n) { maxPollers = n; },
   };

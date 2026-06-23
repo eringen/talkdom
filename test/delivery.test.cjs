@@ -6,7 +6,7 @@ test("invalid input returns a rejection instead of throwing", async t => {
   const { w } = setup(t);
   await assert.rejects(w.talkDOM.send(null), { name: "TypeError" });
   w.talkDOM.methods["other:"] = el => { el.textContent = "ran"; };
-  await assert.rejects(w.talkDOM.send('a" other: ; a other:'));
+  await w.talkDOM.send('a" other: ; a other:');
   assert.equal(w.document.querySelector("[receiver]").textContent, "ran");
 });
 

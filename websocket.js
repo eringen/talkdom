@@ -48,7 +48,7 @@
     var content = msg.content || "";
     var targets;
     if (name) {
-      targets = document.querySelectorAll('[receiver~="' + name + '"]');
+      targets = talkDOM.receivers(name);
     } else {
       // Broadcast to all receivers on this connection.
       targets = Array.from(conn.receivers);

@@ -71,6 +71,8 @@ A sender can address multiple receivers with `;`:
 
 Multiple elements can share the same receiver name. All matching elements receive the message:
 
+Names are literal strings, not CSS selectors. Additional names before the first keyword act as aliases (`receiver="alert notice"`); method keywords and arguments never become receiver names. Tabs and newlines also separate names. `talkDOM.receivers(name)` returns a fresh array of current matches.
+
 ```html
 <div receiver="alert" class="top-banner"></div>
 <div receiver="alert" class="bottom-banner"></div>
@@ -386,7 +388,7 @@ The CSRF meta tag element is cached after the first lookup and only re-queried i
 
 Whitespace regex patterns are precompiled and shared across the library. Internal helpers like `receiverName` and `resolveTarget` avoid unnecessary allocations.
 
-For most pages, talkDOM adds negligible overhead. On pages with thousands of receivers, keep in mind that `querySelectorAll` runs once per unique receiver name per DOM mutation cycle.
+For most pages, talkDOM adds negligible overhead. After relevant DOM mutations, the next lookup rebuilds the name index with one receiver scan; later lookups share that index.
 
 ## License
 
