@@ -9,6 +9,7 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Track actual outer replacements for lifecycle events and share delivery with plugins.
 - Look up literal receiver names safely while preserving aliases before keywords.
 - Refresh cached receivers before same-turn sends after DOM changes.
 - Persist replacement markup after outer swaps instead of the detached original.

@@ -117,6 +117,8 @@
     });
   }
 
+  var replacements = new WeakMap();
+
   // Apply content to an element using the specified operation (inner, text, append, outer).
   function apply(el, op, content) {
     if (!accepts(el, op)) {
@@ -127,7 +129,17 @@
       case "inner": el.innerHTML = content; break;
       case "text": el.textContent = content; break;
       case "append": el.insertAdjacentHTML("beforeend", content); break;
-      case "outer": el.outerHTML = content; break;
+      case "outer": {
+        var parent = el.parentNode;
+        if (!parent) { el.outerHTML = content; break; }
+        var range = document.createRange();
+        range.selectNode(el);
+        var fragment = range.createContextualFragment(String(content));
+        var nodes = Array.from(fragment.childNodes);
+        parent.replaceChild(fragment, el);
+        replacements.set(el, { nodes: nodes, parent: parent });
+        break;
+      }
     }
     persist(el, op, content);
     return content;
@@ -229,58 +241,54 @@
     replayState(e.state);
   });
 
-  // After an outer swap `el` is gone. Walk from the snapshotted sibling or
-  // parent to find the element that took its place; fall back to a fresh
-  // receiver query if the DOM was restructured.
-  function resolveTarget(el, next, parent, name) {
+  // Use actual inserted nodes; text/removal events bubble from the old parent.
+  function eventTarget(el, previous, parent) {
     if (el.isConnected) return el;
-    var candidate = next && next.isConnected ? next.previousElementSibling
-      : parent && parent.isConnected ? parent.lastElementChild : null;
-    return candidate || findReceivers(name)[0];
+    var replacement = replacements.get(el);
+    if (replacement && replacement !== previous) {
+      for (var i = 0; i < replacement.nodes.length; i++) {
+        var node = replacement.nodes[i];
+        if (node.nodeType === 1 && node.isConnected) return node;
+      }
+      parent = replacement.parent;
+    }
+    return parent && parent.isConnected ? parent : document;
   }
 
-  // Deliver a parsed message to all matching receivers. Fires talkdom:done or talkdom:error
-  // lifecycle events on the receiver element (or its replacement if outer-swapped).
+  // Shared delivery path for messages, polling, and plugin applies.
+  function deliver(el, selector, args, name) {
+    var method = methods[selector];
+    var detail = { receiver: name || receiverName(el), selector: selector, args: args, originalReceiver: el };
+    var parent = el.parentNode;
+    var previous = replacements.get(el);
+    function done(value) {
+      eventTarget(el, previous, parent).dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
+      return value;
+    }
+    function failed(err) {
+      detail.error = err;
+      eventTarget(el, previous, parent).dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail: detail }));
+      throw err;
+    }
+    var result;
+    try { result = method(el, ...args); }
+    catch (err) { return Promise.reject(err).catch(failed); }
+    if (result && typeof result.then === "function") return Promise.resolve(result).then(done, failed);
+    return done(result);
+  }
+
   function send(msg, piped) {
     var els = findReceivers(msg.receiver);
     if (els.length === 0) {
       console.error(msg.receiver + " not found");
       return;
     }
-    var method = methods[msg.selector];
-    if (!method) {
+    if (!methods[msg.selector]) {
       console.error(msg.receiver + " does not understand " + msg.selector);
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
-    var results = [];
-    els.forEach(function (el) {
-      var detail = { receiver: msg.receiver, selector: msg.selector, args: msg.args };
-      // Snapshot DOM neighbors before the method runs. If the method does an
-      // outer swap, `el` is replaced and disconnected, so we need these anchors
-      // to locate the replacement element for dispatching lifecycle events.
-      var parent = el.parentNode;
-      var next = el.nextElementSibling;
-      var result;
-      try { result = method(el, ...args); }
-      catch (err) { result = Promise.reject(err); }
-      if (result && typeof result.then === "function") {
-        result = Promise.resolve(result).then(function (value) {
-          var target = resolveTarget(el, next, parent, msg.receiver);
-          if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
-          return value;
-        }, function (err) {
-          detail.error = err;
-          var target = resolveTarget(el, next, parent, msg.receiver);
-          if (target) target.dispatchEvent(new CustomEvent("talkdom:error", { bubbles: true, detail: detail }));
-          throw err;
-        });
-      } else {
-        var target = resolveTarget(el, next, parent, msg.receiver);
-        if (target) target.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
-      }
-      results.push(result);
-    });
+    var results = els.map(function (el) { return deliver(el, msg.selector, args, msg.receiver); });
     return Promise.all(results).then(function (values) { return values[values.length - 1]; });
   }
 
@@ -396,6 +404,10 @@
     config: config,
     methods: methods,
     send: run,
+    deliver: function (el, selector, args) {
+      try { return Promise.resolve(deliver(el, selector, args)); }
+      catch (err) { return Promise.reject(err); }
+    },
     receivers: function (name) { return findReceivers(name).slice(); },
     get maxPollers() { return maxPollers; },
     set maxPollers(n) { maxPollers = n; },

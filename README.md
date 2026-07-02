@@ -386,10 +386,14 @@ Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM
 
 The CSRF meta tag element is cached after the first lookup and only re-queried if removed from the DOM.
 
-Whitespace regex patterns are precompiled and shared across the library. Internal helpers like `receiverName` and `resolveTarget` avoid unnecessary allocations.
+Whitespace regex patterns are precompiled and shared across the library. Internal helpers share receiver parsing and lifecycle delivery.
 
 For most pages, talkDOM adds negligible overhead. After relevant DOM mutations, the next lookup rebuilds the name index with one receiver scan; later lookups share that index.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Plugin delivery
+
+`talkDOM.deliver(element, selector, args)` runs a method on one element and returns a promise with the same lifecycle handling as `send()`. After an outer swap, events target the first inserted element; text-only or empty replacements use the original parent (or document if detached). `event.detail.originalReceiver` identifies the original element.
