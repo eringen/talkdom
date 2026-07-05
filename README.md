@@ -109,7 +109,7 @@ Receivers poll by adding `poll:` as the last keyword with an interval (`s` or `m
 <div receiver="feed get: /updates apply: inner poll: 10s"></div>
 ```
 
-Polling stops automatically when the element is removed from the DOM. A maximum of 64 concurrent pollers is enforced by default. Adjust via:
+Polling follows inserted, removed, and edited receiver declarations, including outer replacements. Identical declarations share one timer and deliver to the current receiver group. Different commands or intervals remain separate pollers. Pending ticks never overlap within a poller; successes and failures emit the normal lifecycle events, and failures are caught so the next tick can recover. A maximum of 64 concurrent pollers is enforced by default. Adjust via:
 
 ```js
 talkDOM.maxPollers = 128;
@@ -382,7 +382,7 @@ Receiver lookups are cached and invalidated automatically via `MutationObserver`
 
 Pending mutations are checked before lookup, so a synchronous insertion, replacement, or receiver rename is visible to the very next send without waiting for an observer callback.
 
-Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM.maxPollers`). Pollers clean up automatically when their element is removed from the DOM. Method lookups are cached at poll setup time.
+Polling is capped at 64 concurrent pollers by default (configurable via `talkDOM.maxPollers`). Pollers clean up when their last matching declaration disappears. Methods and group members are looked up on each tick. The limit accepts nonnegative integers; increasing it starts waiting declarations.
 
 The CSRF meta tag element is cached after the first lookup and only re-queried if removed from the DOM.
 

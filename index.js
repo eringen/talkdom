@@ -93,9 +93,11 @@
   }
 
   // On page load, restore persisted receiver content from localStorage.
+  var restored = new WeakSet();
   function restore() {
     document.querySelectorAll("[persist]").forEach(function (el) {
-      if (!el.hasAttribute("receiver")) return;
+      if (!el.hasAttribute("receiver") || restored.has(el)) return;
+      restored.add(el);
       var name = receiverName(el);
       var key = "talkDOM:" + name;
       var raw = storage("getItem", key);
@@ -348,44 +350,61 @@
     return match[2] === "s" ? n * 1000 : n;
   }
 
-  // Set up a repeating interval for receivers with a poll: keyword.
-  // Stops automatically when the element is removed from the DOM.
-  var activePollers = 0;
+  // Identical declarations share a poller; each tick resolves the live group.
+  var pollers = new Map();
   var maxPollers = 64;
 
-  function startPolling(el) {
-    var attr = el.getAttribute("receiver");
-    var msg = parseMessage(attr);
-    if (msg.keywords[msg.keywords.length - 1] !== "poll:") return;
-    if (activePollers >= maxPollers) {
-      console.warn("talkDOM: max pollers (" + maxPollers + ") reached, ignoring " + msg.receiver);
-      return;
-    }
-    var interval = parseInterval(msg.args[msg.args.length - 1]);
-    if (!interval) {
-      console.error("poll: invalid interval for " + msg.receiver);
-      return;
-    }
-    var selector = msg.keywords.slice(0, -1).join("");
-    var args = msg.args.slice(0, -1);
-    var name = msg.receiver;
-    var cachedTargets = findReceivers(name);
-    var method = methods[selector];
-    activePollers++;
-    var id = setInterval(function () {
-      if (!el.isConnected) { clearInterval(id); activePollers--; return; }
-      if (cachedTargets.length === 0 || !cachedTargets[0].isConnected) {
-        cachedTargets = findReceivers(name);
+  function pollingDeclarations() {
+    var declarations = new Map();
+    document.querySelectorAll("[receiver]").forEach(function (el) {
+      var msg = parseMessage(el.getAttribute("receiver"));
+      if (msg.keywords[msg.keywords.length - 1] !== "poll:") return;
+      var interval = parseInterval(msg.args.pop());
+      msg.keywords.pop();
+      msg.selector = msg.keywords.join("");
+      if (!interval || !Number.isSafeInteger(interval) || interval > 2147483647) return;
+      var key = JSON.stringify([msg.receiver, msg.selector, msg.args, interval]);
+      declarations.set(key, { msg: msg, interval: interval });
+    });
+    return declarations;
+  }
+
+  function reconcilePolling() {
+    var declarations = pollingDeclarations();
+    pollers.forEach(function (poller, key) {
+      if (!declarations.has(key)) {
+        clearInterval(poller.id);
+        pollers.delete(key);
       }
-      if (cachedTargets.length === 0) return;
-      if (!method) method = methods[selector];
-      if (!method) {
-        console.error(name + " does not understand " + selector);
+    });
+    declarations.forEach(function (declaration, key) {
+      if (pollers.has(key)) return;
+      if (pollers.size >= maxPollers) {
+        console.warn("talkDOM: max pollers (" + maxPollers + ") reached");
         return;
       }
-      cachedTargets.forEach(function (target) { method(target, ...args); });
-    }, interval);
+      var poller = { pending: false, id: null };
+      poller.id = setInterval(function () {
+        // Account for same-turn removal/configuration changes before delivery.
+        reconcilePolling();
+        if (pollers.get(key) !== poller || poller.pending) return;
+        var msg = declaration.msg;
+        if (!methods[msg.selector]) return;
+        poller.pending = true;
+        var results = findReceivers(msg.receiver).map(function (target) {
+          return Promise.resolve(deliver(target, msg.selector, msg.args, msg.receiver)).catch(function (err) {
+            console.warn("talkDOM: poll failed", err);
+          });
+        });
+        Promise.all(results).then(function () { poller.pending = false; });
+      }, declaration.interval);
+      pollers.set(key, poller);
+    });
   }
+
+  new MutationObserver(reconcilePolling).observe(document, {
+    childList: true, subtree: true, attributes: true, attributeFilter: ["receiver"]
+  });
 
   // Global click handler: delegate to any element with a sender attribute.
   document.addEventListener("click", function (e) {
@@ -398,7 +417,11 @@
 
   restore();
   replayState(history.state);
-  document.querySelectorAll("[receiver]").forEach(startPolling);
+  reconcilePolling();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () {
+    restore();
+    reconcilePolling();
+  }, { once: true });
 
   window.talkDOM = {
     config: config,
@@ -410,7 +433,11 @@
     },
     receivers: function (name) { return findReceivers(name).slice(); },
     get maxPollers() { return maxPollers; },
-    set maxPollers(n) { maxPollers = n; },
+    set maxPollers(n) {
+      if (!Number.isInteger(n) || n < 0) throw new TypeError("maxPollers must be a nonnegative integer");
+      maxPollers = n;
+      reconcilePolling();
+    },
   };
 
 }());
