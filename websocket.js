@@ -7,6 +7,7 @@
 
   var methods = talkDOM.methods;
   var connections = Object.create(null);
+  var subscriptions = new Map();
   var maxConnections = 16;
   var BASE_DELAY = 1000;
   var MAX_DELAY = 30000;
@@ -27,7 +28,7 @@
   // Returns true if any receivers remain.
   function pruneReceivers(conn) {
     conn.receivers.forEach(function (el) {
-      if (!el.isConnected) conn.receivers.delete(el);
+      if (!el.isConnected || parseWsUrl(el.getAttribute("receiver") || "") !== conn.url) conn.receivers.delete(el);
     });
     return conn.receivers.size > 0;
   }
@@ -41,45 +42,47 @@
     });
   }
 
-  // Route a parsed JSON message to matching receiver elements.
-  function routeJson(conn, msg) {
-    var name = msg.receiver;
-    var op = msg.op || "inner";
-    var content = msg.content || "";
-    var targets;
-    if (name) {
-      targets = talkDOM.receivers(name);
-    } else {
-      // Broadcast to all receivers on this connection.
-      targets = Array.from(conn.receivers);
-    }
-    var detail = { receiver: name || "", selector: "apply:", args: [content, op] };
-    for (var i = 0; i < targets.length; i++) {
-      var el = targets[i];
-      methods["apply:"](el, content, op);
-      el.dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
-    }
+  function messageError(conn, error) {
+    console.error("talkdom-ws: message failed from " + conn.url, error);
+    fireEvent(conn, "talkdom:ws:error", { url: conn.url, error: error });
   }
 
-  // Handle an incoming WebSocket message.
+  // Named messages and broadcasts have the same connection scope.
+  function routeJson(conn, msg) {
+    if (!msg || typeof msg !== "object" || Array.isArray(msg) ||
+        (msg.receiver !== undefined && typeof msg.receiver !== "string") ||
+        (msg.op !== undefined && ["inner", "text", "append", "outer"].indexOf(msg.op) === -1) ||
+        (msg.content !== undefined && msg.content !== null &&
+          ["string", "number", "boolean"].indexOf(typeof msg.content) === -1)) {
+      messageError(conn, new TypeError("invalid message envelope"));
+      return;
+    }
+    var name = msg.receiver;
+    var op = msg.op || "inner";
+    var content = (msg.content === null || msg.content === undefined) ? "" : String(msg.content);
+    var named = name ? talkDOM.receivers(name) : null;
+    Array.from(conn.receivers).forEach(function (el) {
+      if (!el.isConnected || (named && named.indexOf(el) === -1)) return;
+      talkDOM.deliver(el, "apply:", [content, op]).catch(function (err) { messageError(conn, err); });
+    });
+  }
+
   function onMessage(url, event) {
+    initWsReceivers();
     var conn = connections[url];
     if (!conn) return;
     pruneReceivers(conn);
     var data = event.data;
-    if (typeof data !== "string") return; // ignore binary
-    if (data.charAt(0) === "{") {
-      try {
-        var msg = JSON.parse(data);
-        routeJson(conn, msg);
-      } catch (e) {
-        console.error("talkdom-ws: invalid JSON from " + url, e);
-      }
+    if (typeof data !== "string") return;
+    data = data.trimStart();
+    if (data.charAt(0) === "{" || data.charAt(0) === "[") {
+      var msg;
+      try { msg = JSON.parse(data); }
+      catch (err) { messageError(conn, err); return; }
+      routeJson(conn, msg);
     } else {
-      // Raw talkDOM message syntax, dispatch through core.
-      talkDOM.send(data).catch(function (err) {
-        console.warn("talkdom-ws:", err);
-      });
+      // Raw commands intentionally retain their document-wide scope.
+      talkDOM.send(data).catch(function (err) { messageError(conn, err); });
     }
   }
 
@@ -118,7 +121,19 @@
     if (conn.ws && (conn.ws.readyState === WebSocket.OPEN || conn.ws.readyState === WebSocket.CONNECTING)) return;
     if (conn.timer) { clearTimeout(conn.timer); conn.timer = null; }
 
-    var ws = new WebSocket(url);
+    var ws;
+    try {
+      var parsed = new URL(url, document.baseURI);
+      if (["ws:", "wss:", "http:", "https:"].indexOf(parsed.protocol) === -1 || parsed.hash) {
+        throw new TypeError("invalid WebSocket URL");
+      }
+      ws = new WebSocket(url);
+    } catch (err) {
+      fireEvent(conn, "talkdom:ws:error", { url: url, error: err });
+      console.error("talkdom-ws: cannot connect to " + url, err);
+      cleanup(url);
+      return;
+    }
 
     ws.onopen = function () {
       if (connections[url] !== conn || conn.ws !== ws) return;
@@ -152,9 +167,9 @@
       var count = Object.keys(connections).length;
       if (count >= maxConnections) {
         console.warn("talkdom-ws: max connections (" + maxConnections + ") reached, ignoring " + url);
-        return;
+        return false;
       }
-      conn = { ws: null, receivers: new Set(), manual: false, backoff: BASE_DELAY, timer: null, checkTimer: null };
+      conn = { url: url, ws: null, receivers: new Set(), manual: false, backoff: BASE_DELAY, timer: null, checkTimer: null };
       connections[url] = conn;
       // Periodic cleanup check for this connection.
       conn.checkTimer = setInterval(function () {
@@ -165,34 +180,32 @@
     connectWs(url);
   }
 
-  // Scan a single element for ws: keyword and subscribe.
-  function initElement(el) {
-    var attr = el.getAttribute("receiver");
-    if (!attr) return;
-    var url = parseWsUrl(attr);
-    if (!url) return;
-    subscribe(el, url);
-  }
-
-  // Scan all existing receiver elements.
+  // Reconcile URLs and removals without reopening explicitly disconnected subscriptions.
   function initWsReceivers() {
-    document.querySelectorAll("[receiver]").forEach(initElement);
+    var desired = new Map();
+    document.querySelectorAll("[receiver]").forEach(function (el) {
+      var url = parseWsUrl(el.getAttribute("receiver"));
+      if (url) desired.set(el, url);
+    });
+    subscriptions.forEach(function (url, el) {
+      if (desired.get(el) === url) return;
+      var conn = connections[url];
+      if (conn) conn.receivers.delete(el);
+      subscriptions.delete(el);
+    });
+    Object.keys(connections).forEach(function (url) {
+      var conn = connections[url];
+      if (!pruneReceivers(conn) && !conn.manual && Array.from(desired.values()).indexOf(url) === -1) cleanup(url);
+    });
+    desired.forEach(function (url, el) {
+      if (subscriptions.get(el) === url) return;
+      if (subscribe(el, url) !== false) subscriptions.set(el, url);
+    });
   }
 
-  // Watch for dynamically added ws: receivers.
-  new MutationObserver(function (mutations) {
-    for (var i = 0; i < mutations.length; i++) {
-      var added = mutations[i].addedNodes;
-      for (var j = 0; j < added.length; j++) {
-        var node = added[j];
-        if (node.nodeType !== 1) continue;
-        if (node.hasAttribute && node.hasAttribute("receiver")) initElement(node);
-        if (node.querySelectorAll) {
-          node.querySelectorAll("[receiver]").forEach(initElement);
-        }
-      }
-    }
-  }).observe(document, { childList: true, subtree: true });
+  new MutationObserver(initWsReceivers).observe(document, {
+    childList: true, subtree: true, attributes: true, attributeFilter: ["receiver"]
+  });
 
   // ws:send: method — send element value over an existing WebSocket connection.
   methods["ws:send:"] = function (el, url) {
@@ -215,7 +228,7 @@
           console.warn("talkdom-ws: max connections (" + maxConnections + ") reached");
           return;
         }
-        connections[url] = { ws: null, receivers: new Set(), manual: true, backoff: BASE_DELAY, timer: null, checkTimer: null };
+        connections[url] = { url: url, ws: null, receivers: new Set(), manual: true, backoff: BASE_DELAY, timer: null, checkTimer: null };
         connections[url].checkTimer = setInterval(function () {
           if (!pruneReceivers(connections[url]) && !connections[url].manual) cleanup(url);
         }, CLEANUP_INTERVAL);

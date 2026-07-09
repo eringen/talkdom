@@ -9,6 +9,8 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Scope WebSocket JSON updates to current subscribers and reconcile edited subscriptions.
+- Validate socket URLs and JSON envelopes; preserve zero/false content and report apply failures.
 - Reconcile dynamic polling groups, avoid overlapping ticks, and report poll lifecycle events.
 - Restore and discover receivers when a head-loaded script reaches DOM ready.
 - Track actual outer replacements for lifecycle events and share delivery with plugins.

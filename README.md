@@ -397,3 +397,7 @@ MIT. See [LICENSE](LICENSE).
 ### Plugin delivery
 
 `talkDOM.deliver(element, selector, args)` runs a method on one element and returns a promise with the same lifecycle handling as `send()`. After an outer swap, events target the first inserted element; text-only or empty replacements use the original parent (or document if detached). `event.detail.originalReceiver` identifies the original element.
+
+WebSocket JSON messages (named or broadcast) apply only to current subscribers of the sending connection. Aliases work within that set. Attribute edits move subscriptions between URLs; removing `ws:` or the receiver removes its subscription. Invalid URLs emit `talkdom:ws:error` without blocking other connections. Raw command strings still address the whole document and can invoke any registered method: only connect to trusted endpoints.
+
+JSON accepts optional string `receiver`, operations `inner`, `text`, `append`, or `outer`, and string/number/boolean content. Zero and false render as text; null or missing content means empty content. Malformed JSON or fields emit `talkdom:ws:error`. Apply failures also emit `talkdom:error` through shared delivery.
