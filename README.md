@@ -131,13 +131,15 @@ An outer swap saves the replacement markup under the original receiver's key, in
 
 ## Push URL
 
-Senders with `push-url` update the browser URL via `history.pushState`. The message replays on back/forward navigation.
+Senders with `push-url` update the browser URL only after their complete message succeeds. Cancellation or a failed chain leaves the URL unchanged; successful independent chains may still have changed their receivers. Back/Forward restores receiver markup snapshots, including the initial view, without repeating network requests or mutation commands.
 
 ```html
 <button sender="content get: /about apply: inner" push-url="/about">About</button>
 ```
 
-If `push-url` has no value, the first message's first arg is used as the URL.
+If `push-url` has no value, the first message's first arg is used as the URL. URLs are resolved against the document base, must be same-origin, and equivalent URLs do not add entries.
+
+Snapshots cover top-level receiver regions, including outer replacements and removals. Restoration replaces those nodes, so attach application listeners through delegation; JavaScript object state and unsaved form properties are not captured. Keep receiver layout consistent across reloads. Scripts in snapshots are omitted. Old history entries containing only a `sender` string are no longer replayed, to avoid repeating side effects.
 
 ## Server trigger
 

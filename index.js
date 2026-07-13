@@ -210,37 +210,84 @@
     "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
   };
 
-  var pushing = false;
+  var historyRegions = [];
+  var navigation = 0;
+  var initialHistory = history.state;
 
-  // Push URL to browser history. Uses push-url attr value, or falls back to first message arg.
-  function pushUrl(senderEl, raw) {
-    if (!senderEl.hasAttribute("push-url")) return;
-    var url = senderEl.getAttribute("push-url");
-    if (!url) {
-      // Extract the first arg from the first step without a full parseMessage call.
-      // Pattern: "receiver keyword: arg ..." -- grab the token after the first ":"
-      var first = raw.split(";")[0].split("|")[0].trim();
-      var colonIdx = first.indexOf(":");
-      if (colonIdx !== -1) {
-        var afterColon = first.substring(colonIdx + 1).trim();
-        url = afterColon.split(/\s/)[0] || "";
-      }
-    }
-    if (url && (location.pathname + location.search) !== url) {
-      history.pushState({ sender: raw }, "", url);
-    }
+  // Boundaries survive receiver outer swaps, including empty replacements.
+  function ensureHistoryRegions() {
+    document.querySelectorAll("[receiver]").forEach(function (el) {
+      if (el.parentElement && el.parentElement.closest("[receiver]")) return;
+      if (historyRegions.some(function (region) {
+        if (!region.start.isConnected || !region.end.isConnected) return false;
+        var range = document.createRange();
+        range.setStartAfter(region.start);
+        range.setEndBefore(region.end);
+        return range.intersectsNode(el);
+      })) return;
+      var id = historyRegions.length;
+      var start = document.createComment("talkDOM history " + id);
+      var end = document.createComment("/talkDOM history " + id);
+      el.before(start);
+      el.after(end);
+      historyRegions.push({ start: start, end: end });
+    });
   }
 
-  // Re-dispatch a sender message from history state (back/forward navigation).
-  function replayState(state) {
-    if (!state || !state.sender) return;
-    pushing = true;
-    dispatchRaw(state.sender);
-    pushing = false;
+  function historySnapshot() {
+    ensureHistoryRegions();
+    return historyRegions.map(function (region) {
+      if (!region.start.isConnected || !region.end.isConnected) return null;
+      var range = document.createRange();
+      range.setStartAfter(region.start);
+      range.setEndBefore(region.end);
+      var box = document.createElement("div");
+      box.appendChild(range.cloneContents());
+      // Restoring navigation must not execute scripts from earlier responses.
+      box.querySelectorAll("script").forEach(function (script) { script.remove(); });
+      return box.innerHTML;
+    });
+  }
+
+  function historyState() {
+    var state = history.state;
+    return Object.assign({}, state && typeof state === "object" ? state : {}, {
+      talkDOM: { version: 1, regions: historySnapshot() }
+    });
+  }
+
+  function restoreHistory(state) {
+    var saved = state && state.talkDOM;
+    if (!saved || saved.version !== 1 || !Array.isArray(saved.regions)) return;
+    ensureHistoryRegions();
+    saved.regions.forEach(function (html, i) {
+      var region = historyRegions[i];
+      if (typeof html !== "string" || !region || !region.start.isConnected || !region.end.isConnected) return;
+      var range = document.createRange();
+      range.setStartAfter(region.start);
+      range.setEndBefore(region.end);
+      range.deleteContents();
+      range.insertNode(range.createContextualFragment(html));
+    });
+  }
+
+  function navigationURL(senderEl, raw) {
+    var url = senderEl.getAttribute("push-url");
+    if (!url) {
+      var first = parseMessage(raw.split(";")[0].split("|")[0]);
+      url = first.args[0];
+    }
+    if (!url) return null;
+    var resolved = new URL(url, document.baseURI);
+    if (resolved.origin !== location.origin || !/^https?:$/.test(resolved.protocol)) {
+      throw new TypeError("push-url must use the page origin");
+    }
+    return resolved.href;
   }
 
   window.addEventListener("popstate", function (e) {
-    replayState(e.state);
+    navigation++;
+    restoreHistory(e.state);
   });
 
   // Use actual inserted nodes; text/removal events bubble from the old parent.
@@ -339,8 +386,18 @@
   // Entry point for a sender click: dispatch its message and optionally push URL.
   function dispatch(senderEl) {
     var raw = senderEl.getAttribute("sender");
-    dispatchRaw(raw);
-    if (!pushing) pushUrl(senderEl, raw);
+    if (!senderEl.hasAttribute("push-url")) { dispatchRaw(raw); return; }
+    var url;
+    var current = ++navigation;
+    try {
+      url = navigationURL(senderEl, raw);
+      history.replaceState(historyState(), "", location.href);
+    } catch (err) { console.warn("talkDOM: history", err); }
+    run(raw).then(function () {
+      if (current !== navigation || !url) return;
+      if (url === location.href) history.replaceState(historyState(), "", url);
+      else history.pushState(historyState(), "", url);
+    }).catch(function (err) { console.warn("talkDOM:", err); });
   }
 
   function parseInterval(str) {
@@ -416,10 +473,11 @@
   });
 
   restore();
-  replayState(history.state);
+  restoreHistory(history.state);
   reconcilePolling();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () {
     restore();
+    if (navigation === 0) restoreHistory(initialHistory);
     reconcilePolling();
   }, { once: true });
 
