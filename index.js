@@ -1,7 +1,7 @@
 (function () {
 
   var WS = /\s+/;
-  var config = Object.assign({ trustedOrigins: [], includeCurrentURL: true, allowServerTriggers: true }, window.talkDOMConfig);
+  var config = Object.assign({ trustedOrigins: [], includeCurrentURL: true, allowServerTriggers: true, strictApply: false }, window.talkDOMConfig);
 
   // Parse "receiver keyword: arg keyword: arg" into structured message object.
   // Tokens ending with ":" are keywords, everything else fills args.
@@ -72,7 +72,7 @@
   function accepts(el, op) {
     var attr = el.getAttribute("accepts");
     if (!attr) return true;
-    return (" " + attr + " ").indexOf(" " + op + " ") !== -1;
+    return attr.trim().split(WS).indexOf(op) !== -1;
   }
 
   // Save receiver content to localStorage after apply, keyed by receiver name.
@@ -120,11 +120,17 @@
   }
 
   var replacements = new WeakMap();
+  var applyFailures = new WeakMap();
 
   // Apply content to an element using the specified operation (inner, text, append, outer).
   function apply(el, op, content) {
-    if (!accepts(el, op)) {
-      console.error(receiverName(el) + " does not accept " + op);
+    applyFailures.delete(el);
+    var supported = ["inner", "text", "append", "outer"].indexOf(op) !== -1;
+    if (!supported || !accepts(el, op)) {
+      var error = new TypeError(!supported ? "unknown apply operation: " + op : receiverName(el) + " does not accept " + op);
+      applyFailures.set(el, error);
+      if (config.strictApply) throw error;
+      console.error(error.message);
       return;
     }
     switch (op) {
@@ -310,8 +316,11 @@
     var detail = { receiver: name || receiverName(el), selector: selector, args: args, originalReceiver: el };
     var parent = el.parentNode;
     var previous = replacements.get(el);
+    var previousFailure = applyFailures.get(el);
     function done(value) {
-      eventTarget(el, previous, parent).dispatchEvent(new CustomEvent("talkdom:done", { bubbles: true, detail: detail }));
+      var error = applyFailures.get(el);
+      if (error && error !== previousFailure) detail.error = error;
+      eventTarget(el, previous, parent).dispatchEvent(new CustomEvent(detail.error ? "talkdom:error" : "talkdom:done", { bubbles: true, detail: detail }));
       return value;
     }
     function failed(err) {

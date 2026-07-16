@@ -101,6 +101,8 @@ Receivers declare what operations they allow.
 <div receiver="content" accepts="inner text"></div>
 ```
 
+Invalid or denied applies leave the DOM and storage unchanged and emit `talkdom:error`. For compatibility, their promises still resolve by default. Set `talkDOM.config.strictApply = true` (or `window.talkDOMConfig.strictApply` before loading core) to reject these operations and stop downstream pipes. `accepts` uses whitespace-separated tokens; missing or empty attributes allow all supported operations.
+
 ## Polling
 
 Receivers poll by adding `poll:` as the last keyword with an interval (`s` or `ms`) as its argument. The method keywords before `poll:` run on each tick.

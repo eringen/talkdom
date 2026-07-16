@@ -9,6 +9,7 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Validate apply operations, tokenize accepts consistently, and offer strict rejection without changing legacy promise behavior.
 - Push history only after successful navigation and restore snapshots without replaying mutations.
 - Scope WebSocket JSON updates to current subscribers and reconcile edited subscriptions.
 - Validate socket URLs and JSON envelopes; preserve zero/false content and report apply failures.
