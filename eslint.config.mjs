@@ -1,10 +1,11 @@
 export default [
   {
-    files: ["index.js"],
+    files: ["index.js", "test.js"],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: "script",
       globals: {
+        talkDOM: "readonly",
         document: "readonly",
         window: "readonly",
         localStorage: "readonly",
@@ -56,5 +57,17 @@ export default [
       "no-undef": "error",
       "eqeqeq": ["warn", "always"],
     },
+  },
+  {
+    files: ["test-runner.js", "test/**/*.cjs", "scripts/**/*.cjs"],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: "commonjs",
+      globals: Object.fromEntries([
+        "console", "process", "__dirname", "Buffer", "URL", "WebSocket", "fetch",
+        "setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate"
+      ].map(name => [name, "readonly"])),
+    },
+    rules: { "no-undef": "error", "no-unused-vars": ["error", { args: "none", caughtErrors: "none" }] },
   },
 ];

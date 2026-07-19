@@ -13,7 +13,7 @@
   "scripts": {
     "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && terser index.js -o dist/talkdom.min.js -c -m --source-map && terser websocket.js -o dist/talkdom-ws.min.js -c -m --source-map",
     "test": "node test-runner.js && node --test test/*.test.cjs",
-    "lint": "eslint index.js",
+    "lint": "eslint index.js websocket.js test.js test-runner.js test/ --max-warnings 0",
     "prepublishOnly": "npm run build"
   },
   "homepage": "https://talkdom.org",

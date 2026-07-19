@@ -1,7 +1,3 @@
-// Tests intentionally create rejected promises (e.g. confirm cancel).
-// Match browser behavior: warn instead of crashing.
-process.on("unhandledRejection", function () {});
-
 var JSDOM = require("jsdom").JSDOM;
 var fs = require("fs");
 var path = require("path");

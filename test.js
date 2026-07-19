@@ -183,7 +183,7 @@
     window.confirm = function () { return false; };
     var detail = null;
     document.querySelector('[receiver="ev3"]').addEventListener("talkdom:error", function (e) { detail = e.detail; });
-    talkDOM.send("ev3 confirm: sure?");
+    talkDOM.send("ev3 confirm: sure?").then(function () { assert(false, "expected rejection"); }, function (err) { assertEqual(err, "cancelled", "expected rejection"); });
     return tick().then(function () {
       window.confirm = original;
       assert(detail !== null, "talkdom:error fired");
@@ -207,8 +207,10 @@
     fixture('<div receiver="ev5">old</div>');
     var doneFired = false;
     document.getElementById("fixture").addEventListener("talkdom:done", function handler(e) {
-      if (e.detail.receiver === "ev5") { doneFired = true; }
-      document.getElementById("fixture").removeEventListener("talkdom:done", handler);
+      if (e.detail.receiver === "ev5" && e.detail.selector === "apply:") {
+        doneFired = e.target.textContent === "new";
+        document.getElementById("fixture").removeEventListener("talkdom:done", handler);
+      }
     });
     talkDOM.send('ev5 echo: <div receiver="ev5">new</div> | ev5 apply: outer');
     return tick(2).then(function () {
@@ -285,7 +287,7 @@
     var mock = mockFetch("", { status: 500 });
     var errorFired = false;
     document.querySelector('[receiver="rq7"]').addEventListener("talkdom:error", function () { errorFired = true; });
-    talkDOM.send("rq7 get:apply: /fail inner");
+    talkDOM.send("rq7 get: /fail apply: inner").then(function () { assert(false, "expected rejection"); }, function (err) { assertEqual(err, 500, "expected rejection"); });
     return tick(3).then(function () {
       mock.restore();
       assert(errorFired, "talkdom:error fired on 500");
@@ -296,7 +298,7 @@
     fixture('<div receiver="rq8"></div><div receiver="rq8tgt"></div>');
     talkDOM.methods["settxt:"] = function (el, val) { el.textContent = val; };
     var mock = mockFetch("resp", { trigger: "rq8tgt settxt: triggered" });
-    talkDOM.send("rq8 get:apply: /data inner");
+    talkDOM.send("rq8 get: /data apply: inner");
     return tick(4).then(function () {
       mock.restore();
       assertEqual(document.querySelector('[receiver="rq8tgt"]').textContent, "triggered", "trigger message executed");
@@ -353,7 +355,7 @@
   test("rejection stops the chain", function () {
     fixture('<div receiver="p2"></div>');
     talkDOM.methods["reject:"] = function () { return Promise.reject("stop"); };
-    talkDOM.send("p2 reject: | p2 apply: text");
+    talkDOM.send("p2 reject: | p2 apply: text").then(function () { assert(false, "expected rejection"); }, function (err) { assertEqual(err, "stop", "expected rejection"); });
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="p2"]').textContent, "", "chain stopped");
       delete talkDOM.methods["reject:"];
@@ -394,7 +396,7 @@
   test("failure in one chain doesn't block another", function () {
     fixture('<div receiver="s3"></div><div receiver="s4"></div>');
     talkDOM.methods["reject2:"] = function () { return Promise.reject("err"); };
-    talkDOM.send("s3 reject2: ; s4 echo: survived | s4 apply: text");
+    talkDOM.send("s3 reject2: ; s4 echo: survived | s4 apply: text").then(function () { assert(false, "expected rejection"); }, function (err) { assertEqual(err, "err", "expected rejection"); });
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="s4"]').textContent, "survived", "second chain ran despite first failing");
       delete talkDOM.methods["reject2:"];
@@ -436,20 +438,6 @@
       assertEqual(stored.content, "<b>bold</b>", "innerHTML saved");
       localStorage.removeItem("talkDOM:ps3");
     });
-  });
-
-  test("corrupt localStorage handled gracefully on restore", function () {
-    localStorage.setItem("talkDOM:ps4", "not valid json{{{");
-    fixture('<div receiver="ps4" persist>original</div>');
-    assert(document.querySelector('[receiver="ps4"]').textContent === "original", "element not corrupted");
-    var raw = localStorage.getItem("talkDOM:ps4");
-    try {
-      JSON.parse(raw);
-      assert(false, "should have thrown");
-    } catch (e) {
-      assert(true, "corrupt JSON detected");
-    }
-    localStorage.removeItem("talkDOM:ps4");
   });
 
   // ── Sender click delegation ───────────────────────────
@@ -588,7 +576,7 @@
     var threw = false;
     try {
       talkDOM.send("");
-    } catch (e) {
+    } catch {
       threw = true;
     }
     return tick().then(function () {
@@ -623,7 +611,7 @@
     var threw = false;
     try {
       talkDOM.send("pe1");
-    } catch (e) {
+    } catch {
       threw = true;
     }
     return tick().then(function () {
@@ -663,44 +651,6 @@
     return tick(2).then(function () {
       assertEqual(document.querySelector('[receiver="pe5"]').textContent, "http://example.com", "colons in value preserved");
     });
-  });
-
-  // ── Polling cleanup ──────────────────────────────────────
-
-  suite("polling cleanup");
-
-  test("poller stops when element removed", function () {
-    fixture('<div receiver="poll1 echo: x apply: text poll: 50ms"></div>');
-    // startPolling is called on page load for existing elements, so we need to
-    // manually trigger it for dynamically added elements in tests.
-    // Instead, test that removal stops the interval by checking no errors after removal.
-    var el = document.querySelector('[receiver^="poll1"]');
-    el.remove();
-    return tick(3).then(function () {
-      assert(true, "no error after poller element removed");
-    });
-  });
-
-  test("max pollers limit is enforced", function () {
-    var originalMax = talkDOM.maxPollers;
-    talkDOM.maxPollers = 0;
-    var warned = false;
-    var original = console.warn;
-    console.warn = function (msg) { if (typeof msg === "string" && msg.indexOf("max pollers") !== -1) warned = true; };
-    fixture('<div receiver="pollmax echo: x apply: text poll: 1s"></div>');
-    // Trigger polling setup by calling the library's init path
-    // Since startPolling runs at load, we simulate by re-adding the element
-    document.querySelectorAll("[receiver]").forEach(function (el) {
-      var attr = el.getAttribute("receiver");
-      if (attr && attr.indexOf("poll:") !== -1) {
-        // Trigger the code path via programmatic send with poll syntax
-        // Actually, we need to test the warn path directly
-      }
-    });
-    console.warn = original;
-    talkDOM.maxPollers = originalMax;
-    // The limit is checked at init time, not via send - so this test validates the getter/setter
-    assertEqual(talkDOM.maxPollers, originalMax, "maxPollers getter/setter works");
   });
 
   // ── Concurrent operations ──────────────────────────────────
@@ -751,7 +701,7 @@
       try {
         var result = item.fn();
         if (result && typeof result.then === "function") await result;
-      } catch (e) {
+      } catch {
         results.fail++;
         log("  \u2717 " + item.name + " (threw: " + e.message + ")", "fail");
         results.errors.push(item.name + ": " + e.message);

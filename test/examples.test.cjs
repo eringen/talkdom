@@ -17,3 +17,24 @@ test("README programmatic HTTP and literal text examples update the DOM", async 
   await w.talkDOM.send(trigger);
   assert.equal(w.document.querySelector('[receiver="toast"]').textContent, "Saved");
 });
+
+test('main demo keeps one action receiver across repeated steps', async t => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { flush } = require('./helpers.cjs');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const { w } = setup(t, html);
+  let requests = 0;
+  w.fetch = url => {
+    requests++;
+    return Promise.resolve(response(fs.readFileSync(path.join(__dirname, '..', url), 'utf8')));
+  };
+  for (let i = 0; i < 6; i++) {
+    const before = requests;
+    w.talkDOM.receivers('actions')[0].click();
+    await flush();
+    assert.equal(w.talkDOM.receivers('actions').length, 1);
+    assert.equal(requests - before, i % 2 === 0 ? 2 : 3);
+    assert.equal(w.talkDOM.receivers('bottom')[0].children.length, i + 1);
+  }
+});

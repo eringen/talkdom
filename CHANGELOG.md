@@ -9,6 +9,8 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Keep the step demo bounded by appending display-only history fragments.
+- Fail tests on unexpected rejections and lint both runtimes and all tests.
 - Validate apply operations, tokenize accepts consistently, and offer strict rejection without changing legacy promise behavior.
 - Push history only after successful navigation and restore snapshots without replaying mutations.
 - Scope WebSocket JSON updates to current subscribers and reconcile edited subscriptions.

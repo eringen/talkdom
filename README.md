@@ -405,3 +405,5 @@ MIT. See [LICENSE](LICENSE).
 WebSocket JSON messages (named or broadcast) apply only to current subscribers of the sending connection. Aliases work within that set. Attribute edits move subscriptions between URLs; removing `ws:` or the receiver removes its subscription. Invalid URLs emit `talkdom:ws:error` without blocking other connections. Raw command strings still address the whole document and can invoke any registered method: only connect to trusted endpoints.
 
 JSON accepts optional string `receiver`, operations `inner`, `text`, `append`, or `outer`, and string/number/boolean content. Zero and false render as text; null or missing content means empty content. Malformed JSON or fields emit `talkdom:ws:error`. Apply failures also emit `talkdom:error` through shared delivery.
+
+The step demo appends display-only history fragments so repeated clicks keep exactly one active `actions` receiver.
