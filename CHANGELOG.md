@@ -9,6 +9,8 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Build reproducible packages with an artifact allowlist and embedded, linked source maps.
+- Pin the development runtime and check actual packed bundles.
 - Keep the step demo bounded by appending display-only history fragments.
 - Fail tests on unexpected rejections and lint both runtimes and all tests.
 - Validate apply operations, tokenize accepts consistently, and offer strict rejection without changing legacy promise behavior.

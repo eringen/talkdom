@@ -8,13 +8,16 @@
   "files": [
     "index.js",
     "websocket.js",
-    "dist/"
+    "dist/talkdom.min.js",
+    "dist/talkdom.min.js.map",
+    "dist/talkdom-ws.min.js",
+    "dist/talkdom-ws.min.js.map"
   ],
   "scripts": {
-    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && terser index.js -o dist/talkdom.min.js -c -m --source-map && terser websocket.js -o dist/talkdom-ws.min.js -c -m --source-map",
+    "build": "node scripts/build.cjs",
     "test": "node test-runner.js && node --test test/*.test.cjs",
-    "lint": "eslint index.js websocket.js test.js test-runner.js test/ --max-warnings 0",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint index.js websocket.js test.js test-runner.js test/ scripts/ --max-warnings 0",
+    "prepack": "npm run build"
   },
   "homepage": "https://talkdom.org",
   "repository": {
@@ -33,5 +36,8 @@
     "eslint": "^10.1.0",
     "jsdom": "^29.0.1",
     "terser": "^5.46.1"
+  },
+  "engines": {
+    "node": ">=24.15.0"
   }
 }

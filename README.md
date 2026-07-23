@@ -369,16 +369,24 @@ CSRF tokens are read from `<meta name="csrf-token">` and sent automatically on n
 
 ## Browser compatibility
 
-talkDOM works in all modern browsers. No polyfills needed.
+talkDOM targets current browsers with native Fetch, Promise, MutationObserver, Map/Set, WeakMap/WeakSet, URL, and DOM Range support. The repository's browser integration check targets Chromium; historical minimum versions are not verified. IE is not supported. Browser usage does not require Node.
 
-| Browser | Minimum version |
-|---------|-----------------|
-| Chrome  | 51+             |
-| Firefox | 49+             |
-| Safari  | 10+             |
-| Edge    | 79+ (Chromium)  |
+## Development and releases
 
-IE is not supported.
+Use Node 24.15 or newer (the development pin is in `.nvmrc`):
+
+```sh
+nvm use
+npm ci
+npm test
+npm run lint
+npm run build
+npm pack
+```
+
+The tests include isolated core/plugin environments, deterministic polling/reconnect timers, history traversal, and a package build/install-content smoke check. Unexpected promise rejections fail the runner. Both runtimes and test files are linted.
+
+`npm pack` and publishing run the build through `prepack`. Builds regenerate the two classic-script bundles with linked, embedded-source maps, remove known obsolete ESM outputs, and leave unrelated files untouched. An explicit package allowlist prevents stale or unrelated `dist` files from shipping. The package contains browser scripts that expose `window.talkDOM`; it does not provide Node or ESM exports.
 
 ## Performance
 

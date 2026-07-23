@@ -701,7 +701,7 @@
       try {
         var result = item.fn();
         if (result && typeof result.then === "function") await result;
-      } catch {
+      } catch (e) {
         results.fail++;
         log("  \u2717 " + item.name + " (threw: " + e.message + ")", "fail");
         results.errors.push(item.name + ": " + e.message);

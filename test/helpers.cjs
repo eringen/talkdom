@@ -11,7 +11,11 @@ function setup(t, html = '<div receiver="a"></div>', before = () => {}) {
     runScripts: "outside-only",
     virtualConsole: new VirtualConsole(),
   });
-  t.after(() => dom.window.close());
+  t.after(async () => {
+    dom.window.document.replaceChildren();
+    await flush();
+    dom.window.close();
+  });
   const w = dom.window;
   const warnings = [];
   w.console.warn = (...args) => warnings.push(args);
