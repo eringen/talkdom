@@ -29,3 +29,24 @@ test('shared delivery preserves synchronous updates and rejects thrown methods',
   await assert.rejects(w.talkDOM.deliver(el, 'fail:', []), /failure/);
   assert.equal(errors, 1);
 });
+
+test('piped lifecycle details retain the declared arguments', async t => {
+  const { w } = setup(t);
+  const events = [];
+  w.document.addEventListener('talkdom:done', e => events.push(e));
+  w.talkDOM.methods['literal:'] = () => 'content';
+  await w.talkDOM.send('a literal: | a apply: text');
+  assert.deepEqual(Array.from(events[1].detail.args), ['text']);
+});
+
+test('throwing then accessors do not interrupt other receiver deliveries', async t => {
+  const { w } = setup(t, '<div receiver="a"></div><div receiver="a"></div>');
+  let calls = 0, errors = 0;
+  w.document.addEventListener('talkdom:error', () => errors++);
+  w.talkDOM.methods['bad:'] = () => {
+    calls++;
+    return {get then() { throw new Error('bad then'); }};
+  };
+  await assert.rejects(w.talkDOM.send('a bad:'), /bad then/);
+  assert.equal(calls, 2); assert.equal(errors, 2);
+});

@@ -17,7 +17,8 @@
     "build": "node scripts/build.cjs",
     "test": "node test-runner.js && node --test test/*.test.cjs",
     "lint": "eslint index.js websocket.js test.js test-runner.js test/ scripts/ --max-warnings 0",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test:browser": "node scripts/browser-test.cjs"
   },
   "homepage": "https://talkdom.org",
   "repository": {

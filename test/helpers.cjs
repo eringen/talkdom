@@ -9,7 +9,7 @@ function setup(t, html = '<div receiver="a"></div>', before = () => {}) {
   const dom = new JSDOM(html, {
     url: "https://example.test/page?view=1#private",
     runScripts: "outside-only",
-    virtualConsole: new VirtualConsole(),
+    virtualConsole: new VirtualConsole().on("jsdomError", error => { throw error; }),
   });
   t.after(async () => {
     dom.window.document.replaceChildren();

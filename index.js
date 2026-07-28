@@ -140,11 +140,12 @@
       case "outer": {
         var parent = el.parentNode;
         if (!parent) { el.outerHTML = content; break; }
-        var range = document.createRange();
-        range.selectNode(el);
-        var fragment = range.createContextualFragment(String(content));
-        var nodes = Array.from(fragment.childNodes);
-        parent.replaceChild(fragment, el);
+        var before = el.previousSibling;
+        var after = el.nextSibling;
+        el.outerHTML = content;
+        var nodes = [];
+        var node = before ? before.nextSibling : parent.firstChild;
+        while (node && node !== after) { nodes.push(node); node = node.nextSibling; }
         replacements.set(el, { nodes: nodes, parent: parent });
         break;
       }
@@ -311,9 +312,9 @@
   }
 
   // Shared delivery path for messages, polling, and plugin applies.
-  function deliver(el, selector, args, name) {
+  function deliver(el, selector, args, name, detailArgs) {
     var method = methods[selector];
-    var detail = { receiver: name || receiverName(el), selector: selector, args: args, originalReceiver: el };
+    var detail = { receiver: name || receiverName(el), selector: selector, args: detailArgs || args, originalReceiver: el };
     var parent = el.parentNode;
     var previous = replacements.get(el);
     var previousFailure = applyFailures.get(el);
@@ -329,10 +330,11 @@
       throw err;
     }
     var result;
-    try { result = method(el, ...args); }
-    catch (err) { return Promise.reject(err).catch(failed); }
-    if (result && typeof result.then === "function") return Promise.resolve(result).then(done, failed);
-    return done(result);
+    try {
+      result = method(el, ...args);
+      if (result && typeof result.then === "function") return Promise.resolve(result).then(done, failed);
+      return done(result);
+    } catch (err) { return Promise.reject(err).catch(failed); }
   }
 
   function send(msg, piped) {
@@ -346,7 +348,7 @@
       return;
     }
     var args = piped !== undefined ? [piped].concat(msg.args) : msg.args;
-    var results = els.map(function (el) { return deliver(el, msg.selector, args, msg.receiver); });
+    var results = els.map(function (el) { return deliver(el, msg.selector, args, msg.receiver, msg.args); });
     return Promise.all(results).then(function (values) { return values[values.length - 1]; });
   }
 

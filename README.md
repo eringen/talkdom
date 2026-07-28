@@ -61,6 +61,8 @@ args:     ["/partial", "inner"]
 <script src="index.js"></script>
 ```
 
+The step demo appends display-only history fragments so repeated clicks keep exactly one active `actions` receiver.
+
 ## Multiple targets
 
 A sender can address multiple receivers with `;`:
@@ -78,6 +80,8 @@ Names are literal strings, not CSS selectors. Additional names before the first 
 <div receiver="alert" class="bottom-banner"></div>
 <button sender="alert get: /notice apply: inner">Notify both</button>
 ```
+
+Message strings reserve `|` for pipes, `;` for independent chains, and whitespace tokens ending in `:` for method keywords. Quotes and backslashes do not escape those delimiters. For literal data containing reserved syntax, call a method through `talkDOM.deliver(element, selector, args)` instead of interpolating it into a message string.
 
 ## Pipes
 
@@ -218,7 +222,7 @@ For `apply: outer`, the event fires on the replacement element (looked up by rec
 
 ## Programmatic API
 
-`talkDOM.send` accepts the same message syntax as the `sender` attribute and returns a promise.
+`talkDOM.send` accepts the same message syntax as the `sender` attribute and returns a promise. Separate calls remain concurrent: responses may finish out of order, and requests are not automatically cancelled when a receiver disappears. Polling alone suppresses overlapping ticks for the same declaration.
 
 When several elements share a receiver name, successful delivery waits for all of them. A pipe receives the last matching element's value, in document order. Any receiver failure rejects the returned promise promptly and stops that pipe; work already started on other receivers continues and still emits its own lifecycle events.
 
@@ -258,6 +262,11 @@ talkDOM.methods["show:"] = function (el, message) {
   el.style.display = "block";
 };
 ```
+
+
+### Plugin delivery
+
+`talkDOM.deliver(element, selector, args)` runs a method on one element and returns a promise with the same lifecycle handling as `send()`. After an outer swap, events target the first inserted element; text-only or empty replacements use the original parent (or document if detached). `event.detail.originalReceiver` identifies the original element.
 
 ## WebSocket plugin
 
@@ -344,6 +353,7 @@ Incoming messages also fire the standard `talkdom:done` event on the target rece
 
 ```js
 talkDOM.ws.connect("ws://localhost:3000/live");
+// After the connection is open (connections[url].state === WebSocket.OPEN):
 talkDOM.ws.send("ws://localhost:3000/live", { action: "subscribe", channel: "news" });
 talkDOM.ws.send("ws://localhost:3000/live", "plain string");
 talkDOM.ws.disconnect("ws://localhost:3000/live");
@@ -359,17 +369,23 @@ talkDOM.ws.maxConnections = 32;
 
 Manual connections use the same reconnect backoff as declarative ones. Explicit disconnect cancels pending retries; callbacks from an old socket cannot reconnect or deliver messages to a replacement connection.
 
+
+WebSocket JSON messages (named or broadcast) apply only to current subscribers of the sending connection. Aliases work within that set. Attribute edits move subscriptions between URLs; removing `ws:` or the receiver removes its subscription. Invalid URLs emit `talkdom:ws:error` without blocking other connections. Raw command strings still address the whole document and can invoke any registered method: only connect to trusted endpoints.
+
+JSON accepts optional string `receiver`, operations `inner`, `text`, `append`, or `outer`, and string/number/boolean content. Zero and false render as text; null or missing content means empty content. Malformed JSON or fields emit `talkdom:ws:error`. Apply failures also emit `talkdom:error` through shared delivery.
+
 ## Security
 
 talkDOM does **not** sanitize HTML. Content from `get:apply:`, `post:apply:`, server triggers, and piped `apply:` is inserted via `innerHTML` / `insertAdjacentHTML` / `outerHTML` as-is. You are responsible for ensuring that server responses do not contain untrusted markup.
 
-The `persist` attribute stores receiver content in `localStorage` in plain text. Do not use it for sensitive data.
+The `persist` attribute stores receiver content in `localStorage` in plain text. Do not use it for sensitive data. Keys use `talkDOM:<primary receiver name>` and are shared across pages on the same origin; use distinct names where pages should keep separate state. Saved markup is trusted and restored as-is, without rechecking the current `accepts` attribute.
 
-CSRF tokens are read from `<meta name="csrf-token">` and sent automatically on non-GET requests. Make sure this tag is present if your server requires CSRF protection.
+CSRF tokens are read from `<meta name="csrf-token">` and sent automatically on non-GET requests to same-origin or explicitly trusted destinations. Make sure this tag is present if your server requires CSRF protection.
 
 ## Browser compatibility
 
 talkDOM targets current browsers with native Fetch, Promise, MutationObserver, Map/Set, WeakMap/WeakSet, URL, and DOM Range support. The repository's browser integration check targets Chromium; historical minimum versions are not verified. IE is not supported. Browser usage does not require Node.
+
 
 ## Development and releases
 
@@ -380,11 +396,12 @@ nvm use
 npm ci
 npm test
 npm run lint
+npm run test:browser
 npm run build
 npm pack
 ```
 
-The tests include isolated core/plugin environments, deterministic polling/reconnect timers, history traversal, and a package build/install-content smoke check. Unexpected promise rejections fail the runner. Both runtimes and test files are linted.
+The tests include isolated core/plugin environments, deterministic polling/reconnect timers, history traversal, and a package build/install-content smoke check. Unexpected promise rejections fail the runner. Both runtimes and test files are linted. `npm run test:browser` launches an isolated headless Chromium profile against a local test server and checks real clicks, HTTP/WebSocket delivery, history traversal, reload, and mutation safety. Set `CHROME_BIN` to your Chrome/Chromium executable if needed. The GitHub Actions workflow runs these checks on the pinned Node version.
 
 `npm pack` and publishing run the build through `prepack`. Builds regenerate the two classic-script bundles with linked, embedded-source maps, remove known obsolete ESM outputs, and leave unrelated files untouched. An explicit package allowlist prevents stale or unrelated `dist` files from shipping. The package contains browser scripts that expose `window.talkDOM`; it does not provide Node or ESM exports.
 
@@ -405,13 +422,3 @@ For most pages, talkDOM adds negligible overhead. After relevant DOM mutations, 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-### Plugin delivery
-
-`talkDOM.deliver(element, selector, args)` runs a method on one element and returns a promise with the same lifecycle handling as `send()`. After an outer swap, events target the first inserted element; text-only or empty replacements use the original parent (or document if detached). `event.detail.originalReceiver` identifies the original element.
-
-WebSocket JSON messages (named or broadcast) apply only to current subscribers of the sending connection. Aliases work within that set. Attribute edits move subscriptions between URLs; removing `ws:` or the receiver removes its subscription. Invalid URLs emit `talkdom:ws:error` without blocking other connections. Raw command strings still address the whole document and can invoke any registered method: only connect to trusted endpoints.
-
-JSON accepts optional string `receiver`, operations `inner`, `text`, `append`, or `outer`, and string/number/boolean content. Zero and false render as text; null or missing content means empty content. Malformed JSON or fields emit `talkdom:ws:error`. Apply failures also emit `talkdom:error` through shared delivery.
-
-The step demo appends display-only history fragments so repeated clicks keep exactly one active `actions` receiver.

@@ -9,6 +9,8 @@ All notable changes to talkDOM are documented in this file.
 - Explicit trusted origins and controls for current-page headers and server commands.
 
 ### Fixed
+- Verify native clicks, sockets, reload, and history traversal in Chromium and CI.
+- Preserve inert-script outer swaps and the existing lifecycle argument format.
 - Build reproducible packages with an artifact allowlist and embedded, linked source maps.
 - Pin the development runtime and check actual packed bundles.
 - Keep the step demo bounded by appending display-only history fragments.
