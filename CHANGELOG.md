@@ -2,9 +2,10 @@
 
 All notable changes to talkDOM are documented in this file.
 
-## Unreleased
+## [0.5.0] - 2026-09-20
 
 ### Added
+- Shared per-element delivery via `talkDOM.deliver()` and opt-in strict apply rejection.
 - A `text:` message for literal text updates without a pipe.
 - Explicit trusted origins and controls for current-page headers and server commands.
 

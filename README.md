@@ -1,6 +1,6 @@
 # talkDOM
 
-[talkdom.org](https://talkdom.org)
+[talkdom.org](https://talkdom.org) · [npm v0.5.0](https://www.npmjs.com/package/talkdom/v/0.5.0) · [Release notes](CHANGELOG.md)
 
 Smalltalk _inspired_ message passing for the DOM. Declarative HTTP interactions via HTML attributes. No build step, no dependencies. As a big admirer of [htmx](https://htmx.org), it was a major muse when starting this project. ALL HAIL THE HORSEY!
 
@@ -52,7 +52,7 @@ args:     ["/partial", "inner"]
 
 ```html
 <!-- jsDelivr -->
-<script src="https://cdn.jsdelivr.net/npm/talkdom/dist/talkdom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/talkdom@0.5.0/dist/talkdom.min.js"></script>
 
 <!-- unpkg -->
 <script src="https://unpkg.com/talkdom/dist/talkdom.min.js"></script>
@@ -273,8 +273,8 @@ talkDOM.methods["show:"] = function (el, message) {
 The optional `websocket.js` plugin adds server-push via WebSocket as an alternative to polling. Load it after the core library:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/talkdom/dist/talkdom.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/talkdom/dist/talkdom-ws.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/talkdom@0.5.0/dist/talkdom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/talkdom@0.5.0/dist/talkdom-ws.min.js"></script>
 ```
 
 ### Receiving
