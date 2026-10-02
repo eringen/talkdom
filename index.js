@@ -155,6 +155,13 @@
   }
 
   var csrfMeta = null;
+  var reads = new WeakMap();
+  var pendingReads = new Set();
+
+  function abortReads() {
+    pendingReads.forEach(function (controller) { controller.abort(); });
+    pendingReads.clear();
+  }
 
   function csrfToken() {
     // Cache the element reference; re-query only if not found yet or removed.
@@ -166,7 +173,7 @@
 
   // Perform a fetch with talkDOM headers. Returns a promise resolving to response text.
   // Fires server-triggered messages from X-TalkDOM-Trigger header if present.
-  function request(method, url, receiver) {
+  function request(method, url, receiver, el) {
     var origin = new URL(url, document.baseURI).origin;
     var trusted = origin === location.origin || config.trustedOrigins.indexOf(origin) !== -1;
     var headers = {
@@ -181,20 +188,42 @@
       if (token) headers["X-CSRF-Token"] = token;
       else console.warn("talkDOM: no CSRF token found for " + method + " " + url);
     }
-    return fetch(url, { method: method, headers: headers }).then(function (r) {
+    // Supersede reads per element, not per name: aliases and receiver groups
+    // must remain independent. Mutations are never cancelled by a later read.
+    var controller = method === "GET" ? new AbortController() : null;
+    if (controller) {
+      var previous = reads.get(el);
+      if (previous) previous.abort();
+      reads.set(el, controller);
+      pendingReads.add(controller);
+    }
+    function cleanup() {
+      if (!controller) return;
+      pendingReads.delete(controller);
+      if (reads.get(el) === controller) reads.delete(el);
+    }
+    var result;
+    try { result = fetch(url, { method: method, headers: headers, signal: controller ? controller.signal : undefined }); }
+    catch (err) { cleanup(); return Promise.reject(err); }
+    return Promise.resolve(result).then(function (r) {
       if (!r.ok) {
         console.error("talkDOM: " + method + " " + url + " " + r.status);
         return Promise.reject(r.status);
       }
       var trigger = r.headers.get("X-TalkDOM-Trigger");
       return r.text().then(function (text) {
+        // Fetch implementations can finish despite abort (or while reading the
+        // body). Check again before either applying content or firing triggers.
+        if (controller && (controller.signal.aborted || reads.get(el) !== controller)) {
+          throw new DOMException("Superseded request", "AbortError");
+        }
         if (trigger && config.allowServerTriggers) dispatchRaw(trigger);
         return text;
       });
     }, function (err) {
       console.error("talkDOM: " + method + " " + url + " failed", err);
       return Promise.reject(err);
-    });
+    }).finally(cleanup);
   }
 
   function recName(el) {
@@ -204,17 +233,17 @@
   // Built-in method table. Each method receives (el, ...args) from the parsed message.
   // Extensible via talkDOM.methods at runtime.
   const methods = {
-    "get:": function (el, url) { return request("GET", url, recName(el)); },
-    "post:": function (el, url) { return request("POST", url, recName(el)); },
-    "put:": function (el, url) { return request("PUT", url, recName(el)); },
-    "delete:": function (el, url) { return request("DELETE", url, recName(el)); },
+    "get:": function (el, url) { return request("GET", url, recName(el), el); },
+    "post:": function (el, url) { return request("POST", url, recName(el), el); },
+    "put:": function (el, url) { return request("PUT", url, recName(el), el); },
+    "delete:": function (el, url) { return request("DELETE", url, recName(el), el); },
     "confirm:": function (el, message) { if (!confirm(message)) return Promise.reject("cancelled"); },
     "apply:": function (el, content, op) { return apply(el, op, content); },
     "text:": function (el, content) { return apply(el, "text", content); },
-    "get:apply:": function (el, url, op) { return request("GET", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
-    "post:apply:": function (el, url, op) { return request("POST", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
-    "put:apply:": function (el, url, op) { return request("PUT", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
-    "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el)).then(function (t) { return apply(el, op, t); }); },
+    "get:apply:": function (el, url, op) { return request("GET", url, recName(el), el).then(function (t) { return apply(el, op, t); }); },
+    "post:apply:": function (el, url, op) { return request("POST", url, recName(el), el).then(function (t) { return apply(el, op, t); }); },
+    "put:apply:": function (el, url, op) { return request("PUT", url, recName(el), el).then(function (t) { return apply(el, op, t); }); },
+    "delete:apply:": function (el, url, op) { return request("DELETE", url, recName(el), el).then(function (t) { return apply(el, op, t); }); },
   };
 
   var historyRegions = [];
@@ -294,6 +323,7 @@
 
   window.addEventListener("popstate", function (e) {
     navigation++;
+    abortReads();
     restoreHistory(e.state);
   });
 
@@ -400,6 +430,7 @@
     if (!senderEl.hasAttribute("push-url")) { dispatchRaw(raw); return; }
     var url;
     var current = ++navigation;
+    abortReads();
     try {
       url = navigationURL(senderEl, raw);
       history.replaceState(historyState(), "", location.href);
@@ -477,7 +508,9 @@
   // Global click handler: delegate to any element with a sender attribute.
   document.addEventListener("click", function (e) {
     const sender = e.target.closest("[sender]");
-    if (sender) {
+    if (sender && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey &&
+        e.button === 0 && !sender.hasAttribute("download") &&
+        (!sender.getAttribute("target") || sender.getAttribute("target") === "_self")) {
       e.preventDefault();
       dispatch(sender);
     }

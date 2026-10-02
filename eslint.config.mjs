@@ -22,6 +22,8 @@ export default [
         Headers: "readonly",
         URL: "readonly",
         MutationObserver: "readonly",
+        AbortController: "readonly",
+        DOMException: "readonly",
       },
     },
     rules: {

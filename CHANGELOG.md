@@ -2,6 +2,12 @@
 
 All notable changes to talkDOM are documented in this file.
 
+## Unreleased
+
+- Cancel superseded GETs per receiver element and discard late response bodies and server triggers.
+- Abort pending reads during navigation and history traversal without cancelling writes.
+- Preserve modified clicks, prevented events, downloads, and links targeting other browsing contexts.
+
 ## [0.5.0] - 2026-09-20
 
 ### Added

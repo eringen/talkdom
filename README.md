@@ -135,6 +135,10 @@ An outer swap saves the replacement markup under the original receiver's key, in
 <div receiver="sidebar" persist></div>
 ```
 
+GET requests use the latest response per receiver element: starting another GET aborts the previous one, and late responses cannot update the DOM or dispatch server triggers. Receiver groups remain independent. Starting a `push-url` navigation or traversing history cancels pending GETs; writes are never cancelled automatically. Cancelled programmatic sends reject with `AbortError`.
+
+Declarative clicks preserve the browser's normal handling for Ctrl/Cmd/Shift/Alt-click, non-primary clicks, downloads, other link targets, and events already prevented by application code.
+
 ## Push URL
 
 Senders with `push-url` update the browser URL only after their complete message succeeds. Cancellation or a failed chain leaves the URL unchanged; successful independent chains may still have changed their receivers. Back/Forward restores receiver markup snapshots, including the initial view, without repeating network requests or mutation commands.
