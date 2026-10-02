@@ -120,7 +120,8 @@ async function main() {
     }
     for (const socket of sockets) socket.destroy();
     await new Promise(resolve => server.close(resolve));
-    await fs.rm(profile, {recursive:true, force:true});
+    // Chromium subprocesses can finish profile writes after the main process exits.
+    await fs.rm(profile, {recursive:true, force:true, maxRetries:5, retryDelay:200});
   }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
